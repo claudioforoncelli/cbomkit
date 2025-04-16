@@ -138,16 +138,12 @@ public class BasicQuantumSafeComplianceService implements IComplianceService {
     public @Nonnull ComplianceCheckResultDTO evaluate(
             @Nonnull PolicyIdentifier policyIdentifier,
             @Nonnull Collection<CryptographicAsset> cryptographicAssets) {
-
-        // TEMPORARY: accept only your custom policy
-        if (!policyIdentifier.id().equals("nist_800_131a_r3")) {
+        if (!policyIdentifier.id().equals("quantum_safe")) {
             return new ComplianceCheckResultDTO(List.of(), true);
         }
-
         return new ComplianceCheckResultDTO(
                 cryptographicAssets.stream().map(this::evaluate).toList(), false);
     }
-
 
     @SuppressWarnings("java:S3776")
     @Nonnull
@@ -156,6 +152,80 @@ public class BasicQuantumSafeComplianceService implements IComplianceService {
         final CryptoProperties cryptoProperties =
                 cryptographicAsset.component().getCryptoProperties();
         final AlgorithmProperties algorithmProperties = cryptoProperties.getAlgorithmProperties();
+        final String name = cryptographicAsset.component().getName() != null
+                ? cryptographicAsset.component().getName().toLowerCase()
+                : "";
+        final String mode = algorithmProperties != null && algorithmProperties.getMode() != null
+                ? algorithmProperties.getMode().toString().toLowerCase()
+                : "";
+
+        // Rule: SHA-1 and SHA-224 are deprecated (disallowed after 2030)
+        if (name.contains("sha-1")) {
+            return new BasicCryptographicAssetPolicyResult(
+                    cryptographicAsset.identifier(),
+                    complianceLevels.get(2),
+                    "SHA-1 is deprecated and disallowed after 2030");
+        } else if (name.contains("sha224")) {
+            return new BasicCryptographicAssetPolicyResult(
+                    cryptographicAsset.identifier(),
+                    complianceLevels.get(2),
+                    "SHA-224 is deprecated and disallowed after 2030");
+        }
+
+        // Rule: AES is always acceptable
+        if (name.contains("aes")) {
+            return new BasicCryptographicAssetPolicyResult(
+                    cryptographicAsset.identifier(),
+                    complianceLevels.get(3),
+                    "AES is acceptable at all key sizes (128+)");
+        }
+
+        // Rule: TDEA is disallowed
+        if (name.contains("tdea") || name.contains("3des") || name.contains("triple des")) {
+            return new BasicCryptographicAssetPolicyResult(
+                    cryptographicAsset.identifier(), complianceLevels.get(1), "TDEA is disallowed");
+        }
+
+        // Modes
+        if (mode.contains("ecb")) {
+            return new BasicCryptographicAssetPolicyResult(
+                    cryptographicAsset.identifier(), complianceLevels.get(4), "ECB mode is disallowed for encryption but " +
+                    "allowed as legacy use for decryption"
+            );
+        } else if (mode.contains("cbc")) {
+            return new BasicCryptographicAssetPolicyResult(
+                    cryptographicAsset.identifier(), complianceLevels.get(3), "CBC mode is acceptable"
+            );
+        } else if (mode.contains("cfb")) {
+            return new BasicCryptographicAssetPolicyResult(
+                    cryptographicAsset.identifier(), complianceLevels.get(3), "CFB mode is acceptable"
+            );
+        } else if (mode.contains("ctr")) {
+            return new BasicCryptographicAssetPolicyResult(
+                    cryptographicAsset.identifier(), complianceLevels.get(3), "CTR mode is acceptable"
+            );
+        } else if (mode.contains("ofb")) {
+            return new BasicCryptographicAssetPolicyResult(
+                    cryptographicAsset.identifier(), complianceLevels.get(3), "OFB mode is acceptable"
+            );
+        } else if (mode.contains("ccm")) {
+            return new BasicCryptographicAssetPolicyResult(
+                    cryptographicAsset.identifier(), complianceLevels.get(3), "CCM mode is acceptable"
+            );
+        } else if (mode.contains("gcm")) {
+            return new BasicCryptographicAssetPolicyResult(
+                    cryptographicAsset.identifier(), complianceLevels.get(3), "GCM mode is acceptable"
+            );
+        } else if (mode.contains("xts")) {
+            return new BasicCryptographicAssetPolicyResult(
+                    cryptographicAsset.identifier(), complianceLevels.get(3), "XTS-AES mode is acceptable"
+            );
+        } else if (mode.contains("ff3")) {
+            return new BasicCryptographicAssetPolicyResult(
+                    cryptographicAsset.identifier(), complianceLevels.get(1), "FF3 mode is disallowed"
+            );
+        }
+
         if (algorithmProperties == null) {
             return new BasicCryptographicAssetPolicyResult(
                     cryptographicAsset.identifier(),
@@ -179,7 +249,6 @@ public class BasicQuantumSafeComplianceService implements IComplianceService {
                     "The asset primitive was not set, which does not allow further categorization");
         } else if (ASYMMETRIC_PRIMITIVES.contains(primitive)
                 || UNKNOWN_PRIMITIVES.contains(primitive)) {
-            final String name = cryptographicAsset.component().getName();
             final String oid = cryptoProperties.getOid();
             if (oid != null && WHITELIST_OIDS.contains(oid)) {
                 return new BasicCryptographicAssetPolicyResult(
@@ -187,17 +256,14 @@ public class BasicQuantumSafeComplianceService implements IComplianceService {
                         this.complianceLevels.get(3),
                         "The OID of the asset is part of the Quantum Safe OIDs whitelist");
             }
-            if (name != null) {
-                String lowerCaseName = name.toLowerCase();
-                for (String whitelistItem : WHITELIST_NAMES) {
-                    if (lowerCaseName.contains(whitelistItem)) {
-                        return new BasicCryptographicAssetPolicyResult(
-                                cryptographicAsset.identifier(),
-                                this.complianceLevels.get(3),
-                                "The name of the asset contains '"
-                                        + whitelistItem
-                                        + "', which is part of the Quantum Safe whitelist of component names");
-                    }
+            for (String whitelistItem : WHITELIST_NAMES) {
+                if (name.contains(whitelistItem)) {
+                    return new BasicCryptographicAssetPolicyResult(
+                            cryptographicAsset.identifier(),
+                            this.complianceLevels.get(3),
+                            "The name of the asset contains '"
+                                    + whitelistItem
+                                    + "', which is part of the Quantum Safe whitelist of component names");
                 }
             }
             if (ASYMMETRIC_PRIMITIVES.contains(primitive)) {
