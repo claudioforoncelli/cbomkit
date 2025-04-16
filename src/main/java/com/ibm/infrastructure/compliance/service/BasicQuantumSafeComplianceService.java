@@ -138,12 +138,16 @@ public class BasicQuantumSafeComplianceService implements IComplianceService {
     public @Nonnull ComplianceCheckResultDTO evaluate(
             @Nonnull PolicyIdentifier policyIdentifier,
             @Nonnull Collection<CryptographicAsset> cryptographicAssets) {
-        if (!policyIdentifier.id().equals("quantum_safe")) {
+
+        // TEMPORARY: accept only your custom policy
+        if (!policyIdentifier.id().equals("nist_800_131a_r3")) {
             return new ComplianceCheckResultDTO(List.of(), true);
         }
+
         return new ComplianceCheckResultDTO(
                 cryptographicAssets.stream().map(this::evaluate).toList(), false);
     }
+
 
     @SuppressWarnings("java:S3776")
     @Nonnull
