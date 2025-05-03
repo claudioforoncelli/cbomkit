@@ -20,8 +20,8 @@
 package com.ibm.infrastructure;
 
 import com.ibm.infrastructure.compliance.IComplianceConfiguration;
-import com.ibm.infrastructure.compliance.service.BasicQuantumSafeComplianceService;
 import com.ibm.infrastructure.compliance.service.IComplianceService;
+import com.ibm.infrastructure.compliance.service.NISTSP800131AR3ComplianceService;
 import com.ibm.infrastructure.scanning.IScanConfiguration;
 import jakarta.annotation.Nonnull;
 import jakarta.enterprise.context.ApplicationScoped;
@@ -34,7 +34,7 @@ public final class Configuration implements IScanConfiguration, IComplianceConfi
     @Nonnull
     @Override
     public IComplianceService getComplianceService() {
-        return new BasicQuantumSafeComplianceService();
+        return new NISTSP800131AR3ComplianceService();
     }
 
     @Nonnull

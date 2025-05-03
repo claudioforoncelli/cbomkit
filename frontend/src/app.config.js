@@ -7,6 +7,8 @@ export const API_SCAN_URL = joinURL(API_BASE_WS, apiConfig.SCAN);
 export const API_LAST_CBOM_URL = joinURL(API_BASE_HTTP, apiConfig.LAST_CBOMS);
 export const API_CHECK_POLICY = joinURL(API_BASE_HTTP, apiConfig.CHECK_POLICY);
 
+export const DEFAULT_POLICY_IDENTIFIER = "nist_sp_800_131_ar3";
+
 function joinURL(baseURL, endpoint) {
   const url = new URL(endpoint, baseURL);
   return url.toString();
