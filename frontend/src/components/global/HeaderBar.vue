@@ -14,6 +14,12 @@
       <span style="margin: auto auto auto 8px; color: white">
         {{ getTitle }}
       </span>
+
+      <select v-model="model.selectedPolicyIdentifier" style="margin-left: 16px;">
+        <option value="quantum_safe">Quantum Safe</option>
+        <option value="nist_sp_800_131_ar3">NIST SP800-131A</option>
+      </select>
+
       <cv-header-global-action
         @click="updateTheme"
         :label="tipText"
@@ -32,6 +38,7 @@
 import { model } from "@/model.js";
 import { getTitle } from "@/helpers.js";
 import { Awake24, Moon24, BrightnessContrast24 } from "@carbon/icons-vue";
+
 
 export default {
   name: "HeaderBar",

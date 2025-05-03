@@ -141,7 +141,7 @@ export default {
     // Case where the results page is loaded with a CBOM (when uploading a CBOM or clicking on recent scans)
     // The CBOM is therefore immediately sent to the API
     if (model.cbom != null) {
-      getComplianceReport(model.cbom);
+      getComplianceReport(model.cbom, model.selectedPolicyIdentifier);
     }
   },
   watch: {
@@ -149,7 +149,7 @@ export default {
     // The CBOM is sent to the API as soon as it is received by the client
     "model.cbom": function (newResult) {
       if (newResult != null) {
-        getComplianceReport(model.cbom);
+        getComplianceReport(model.cbom, model.selectedPolicyIdentifier);
       }
     },
   },

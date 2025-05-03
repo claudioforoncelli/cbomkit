@@ -34,6 +34,7 @@ export const model = reactive({
     password: null,
     pat: null,
   },
+  selectedPolicyIdentifier: 'quantum_safe',
   policyCheckResult: null,
   errors: [],
   lastCboms: [],

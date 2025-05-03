@@ -60,7 +60,7 @@ function getRemoteComplianceReport(cbom, policyIdentifier = DEFAULT_POLICY_IDENT
 
 export function getComplianceReport(cbom, policyIdentifier = DEFAULT_POLICY_IDENTIFIER) {
   if (isViewerOnly()) {
-    getLocalComplianceReport(cbom)
+    getLocalComplianceReport(cbom, policyIdentifier)
   } else {
     getRemoteComplianceReport(cbom, policyIdentifier)
   }
