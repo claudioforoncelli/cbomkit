@@ -25,7 +25,7 @@ import com.ibm.domain.compliance.CryptographicAsset;
 import com.ibm.domain.compliance.PolicyIdentifier;
 import com.ibm.infrastructure.compliance.ComplianceFinding;
 import com.ibm.infrastructure.compliance.ComplianceResult;
-import com.ibm.infrastructure.compliance.IComplianceConfiguration;
+import com.ibm.infrastructure.compliance.ComplianceServiceSelector;
 import com.ibm.infrastructure.compliance.service.ComplianceCheckResultDTO;
 import com.ibm.infrastructure.compliance.service.IComplianceService;
 import com.ibm.usecases.compliance.service.CompliancePreparationService;
@@ -38,23 +38,23 @@ import java.util.Collection;
 @Singleton
 public final class RequestComplianceCheckForCBOMQueryHandler
         extends QueryHandler<RequestComplianceCheckForCBOMQuery, ComplianceResult> {
-    @Nonnull private final IComplianceService complianceService;
+    @Nonnull private final ComplianceServiceSelector complianceSelector;
 
     void onStart(@Observes StartupEvent event) {
         this.queryBus.register(this, RequestComplianceCheckForCBOMQuery.class);
     }
 
     public RequestComplianceCheckForCBOMQueryHandler(
-            @Nonnull IQueryBus queryBus,
-            @Nonnull IComplianceConfiguration complianceConfiguration) {
+            @Nonnull IQueryBus queryBus, @Nonnull ComplianceServiceSelector complianceSelector) {
         super(queryBus);
-        this.complianceService = complianceConfiguration.getComplianceService();
+        this.complianceSelector = complianceSelector;
     }
 
     @Override
     public @Nonnull ComplianceResult handle(
             @Nonnull RequestComplianceCheckForCBOMQuery requestComplianceCheckForCBOMQuery)
             throws Exception {
+
         final CompliancePreparationService compliancePreparationService =
                 new CompliancePreparationService();
         final Collection<CryptographicAsset> cryptographicAssets =
@@ -63,14 +63,19 @@ public final class RequestComplianceCheckForCBOMQueryHandler
 
         final PolicyIdentifier policyIdentifier =
                 new PolicyIdentifier(requestComplianceCheckForCBOMQuery.policyIdentifier());
+
+        final IComplianceService selectedComplianceService =
+                this.complianceSelector.getService(policyIdentifier.id());
+
         final ComplianceCheckResultDTO complianceCheckResultDTO =
-                this.complianceService.evaluate(policyIdentifier, cryptographicAssets);
+                selectedComplianceService.evaluate(policyIdentifier, cryptographicAssets);
 
         if (complianceCheckResultDTO.error()) {
-            return ComplianceResult.error(this.complianceService.getName());
+            return ComplianceResult.error(selectedComplianceService.getName());
         }
+
         return new ComplianceResult(
-                this.complianceService.getName(),
+                selectedComplianceService.getName(),
                 policyIdentifier.id(),
                 complianceCheckResultDTO.policyResults().stream()
                         .map(
@@ -80,8 +85,8 @@ public final class RequestComplianceCheckForCBOMQueryHandler
                                                 result.complianceLevel().id(),
                                                 result.message()))
                         .toList(),
-                this.complianceService.getComplianceLevels(),
-                this.complianceService.getDefaultComplianceLevel().id(),
+                selectedComplianceService.getComplianceLevels(),
+                selectedComplianceService.getDefaultComplianceLevel().id(),
                 complianceCheckResultDTO.policyResults().stream()
                         .noneMatch(result -> result.complianceLevel().isUnCompliant()),
                 false);

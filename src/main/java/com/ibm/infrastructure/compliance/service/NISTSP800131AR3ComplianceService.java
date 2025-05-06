@@ -37,7 +37,7 @@ public class NISTSP800131AR3ComplianceService implements IComplianceService {
                 new ComplianceLevel(
                         1,
                         "Disallowed",
-                        null,
+                        "Use is disallowed",
                         "#dc3545",
                         ComplianceLevel.ComplianceIcon.ERROR,
                         true));
@@ -129,12 +129,12 @@ public class NISTSP800131AR3ComplianceService implements IComplianceService {
             return new BasicCryptographicAssetPolicyResult(
                     cryptographicAsset.identifier(),
                     complianceLevels.get(2),
-                    "SHA-1 is deprecated and disallowed after 2030");
+                    "SHA-1 is deprecated and disallowed after 2030, as specified in section 1.2 of the guideline.");
         } else if (name.contains("sha224")) {
             return new BasicCryptographicAssetPolicyResult(
                     cryptographicAsset.identifier(),
                     complianceLevels.get(2),
-                    "SHA-224 is deprecated and disallowed after 2030");
+                    "SHA-224 is deprecated and disallowed after 2030, as specified in section 1.2 of the guideline.");
         }
 
         // Rule: AES is always acceptable
@@ -142,13 +142,15 @@ public class NISTSP800131AR3ComplianceService implements IComplianceService {
             return new BasicCryptographicAssetPolicyResult(
                     cryptographicAsset.identifier(),
                     complianceLevels.get(3),
-                    "AES is acceptable at all key sizes (128+)");
+                    "AES is acceptable at all key sizes (128+), as specified in section 2.1 of the guideline.");
         }
 
         // Rule: TDEA is disallowed
         if (name.contains("tdea") || name.contains("3des") || name.contains("triple des")) {
             return new BasicCryptographicAssetPolicyResult(
-                    cryptographicAsset.identifier(), complianceLevels.get(1), "TDEA is disallowed");
+                    cryptographicAsset.identifier(),
+                    complianceLevels.get(1),
+                    "TDEA is disallowed, as specified in section 2.1 of the guideline.");
         }
 
         // Modes
@@ -157,47 +159,47 @@ public class NISTSP800131AR3ComplianceService implements IComplianceService {
                     cryptographicAsset.identifier(),
                     complianceLevels.get(4),
                     "ECB mode is disallowed for encryption but "
-                            + "allowed as legacy use for decryption");
+                            + "allowed as legacy use for decryption, as specified in section 2.2 of the guideline.");
         } else if (mode.contains("cbc")) {
             return new BasicCryptographicAssetPolicyResult(
                     cryptographicAsset.identifier(),
                     complianceLevels.get(3),
-                    "CBC mode is acceptable");
+                    "CBC mode is acceptable, as specified in section 2.2 of the guideline.");
         } else if (mode.contains("cfb")) {
             return new BasicCryptographicAssetPolicyResult(
                     cryptographicAsset.identifier(),
                     complianceLevels.get(3),
-                    "CFB mode is acceptable");
+                    "CFB mode is acceptable, as specified in section 2.2 of the guideline.");
         } else if (mode.contains("ctr")) {
             return new BasicCryptographicAssetPolicyResult(
                     cryptographicAsset.identifier(),
                     complianceLevels.get(3),
-                    "CTR mode is acceptable");
+                    "CTR mode is acceptable, as specified in section 2.2 of the guideline.");
         } else if (mode.contains("ofb")) {
             return new BasicCryptographicAssetPolicyResult(
                     cryptographicAsset.identifier(),
                     complianceLevels.get(3),
-                    "OFB mode is acceptable");
+                    "OFB mode is acceptable, as specified in section 2.2 of the guideline.");
         } else if (mode.contains("ccm")) {
             return new BasicCryptographicAssetPolicyResult(
                     cryptographicAsset.identifier(),
                     complianceLevels.get(3),
-                    "CCM mode is acceptable");
+                    "CCM mode is acceptable, as specified in section 2.2 of the guideline.");
         } else if (mode.contains("gcm")) {
             return new BasicCryptographicAssetPolicyResult(
                     cryptographicAsset.identifier(),
                     complianceLevels.get(3),
-                    "GCM mode is acceptable");
+                    "GCM mode is acceptable, as specified in section 2.2 of the guideline.");
         } else if (mode.contains("xts")) {
             return new BasicCryptographicAssetPolicyResult(
                     cryptographicAsset.identifier(),
                     complianceLevels.get(3),
-                    "XTS-AES mode is acceptable");
+                    "XTS-AES mode is acceptable, as specified in section 2.2 of the guideline.");
         } else if (mode.contains("ff3")) {
             return new BasicCryptographicAssetPolicyResult(
                     cryptographicAsset.identifier(),
                     complianceLevels.get(1),
-                    "FF3 mode is disallowed");
+                    "FF3 mode is disallowed, as specified in section 2.2 of the guideline.");
         }
 
         // Default fallback
