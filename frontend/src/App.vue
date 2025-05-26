@@ -74,7 +74,13 @@ export default {
       document.body.style.color = newMode ? "white" : "black";
       document.body.style.backgroundColor = newMode ? "#262626" : "white";
     },
+    "model.selectedPolicyIdentifier": function () {
+      if (model.cbom && model.policyCheckResult) {
+        model.recheckCompliance();
+      }
+    },
   },
+
 };
 </script>
 

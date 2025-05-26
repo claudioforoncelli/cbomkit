@@ -24,7 +24,9 @@ import com.ibm.infrastructure.compliance.service.IComplianceService;
 import com.ibm.infrastructure.compliance.service.NISTSP800131AR3ComplianceService;
 import jakarta.annotation.PostConstruct;
 import jakarta.enterprise.context.ApplicationScoped;
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 @ApplicationScoped
@@ -57,5 +59,26 @@ public class ComplianceServiceSelector {
 
     public void register(String policyIdentifier, IComplianceService service) {
         services.put(policyIdentifier, service);
+    }
+
+    public boolean remove(String policyIdentifier) {
+        // Prevent deleting built-in policies
+        if (policyIdentifier.equals("quantum_safe")
+                || policyIdentifier.equals("nist_sp_800_131_ar3")) {
+            return false;
+        }
+
+        return services.remove(policyIdentifier) != null;
+    }
+
+    public List<Map<String, String>> listPolicies() {
+        List<Map<String, String>> policyList = new ArrayList<>();
+        for (Map.Entry<String, IComplianceService> entry : services.entrySet()) {
+            Map<String, String> map = new HashMap<>();
+            map.put("id", entry.getKey());
+            map.put("label", entry.getValue().getName());
+            policyList.add(map);
+        }
+        return policyList;
     }
 }

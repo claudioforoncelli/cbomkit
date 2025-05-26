@@ -26,7 +26,8 @@
       <PluginExplainerView class="plugin-explainer-view"/>
     </div>
     <div v-else>
-      <SearchOrUploadView class="search-or-upload-view"/>
+      <SearchOrUploadView class="search-or-upload-view" />
+      <PolicyUploader class="policy-uploader" @policy-uploaded="onPolicyUploaded" />
     </div>
     <ExplainerView class="explainer-view" />
   </div>
@@ -40,6 +41,7 @@ import FileUploader from "@/components/home/FileUploader.vue";
 import ExplainerView from "@/components/home/ExplainerView.vue";
 import PluginExplainerView from "@/components/home/PluginExplainerView.vue";
 import TrySampleButton from "@/components/home/TrySampleButton.vue";
+import PolicyUploader from "@/components/home/PolicyUploader.vue";
 
 export default {
   name: "HomeView",
@@ -48,7 +50,8 @@ export default {
     SearchOrUploadView,
     ExplainerView,
     PluginExplainerView,
-    TrySampleButton
+    TrySampleButton,
+    PolicyUploader
   },
   data() {
     return {
@@ -58,7 +61,17 @@ export default {
   computed: {
     getTitle,
     isViewerOnly
-  }
+  },
+  methods: {
+    onPolicyUploaded() {
+      if (typeof model.reloadPolicyIdentifiers === "function") {
+        model.reloadPolicyIdentifiers();
+      } else {
+        console.warn("Policy reload function not defined on model.");
+      }
+    },
+  },
+
 };
 </script>
 
@@ -85,5 +98,8 @@ export default {
 }
 .explainer-view {
   padding: 0% 5% 7%;
+}
+.policy-uploader {
+  padding: 3% 5%;
 }
 </style>
