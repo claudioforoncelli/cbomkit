@@ -21,6 +21,30 @@ package com.ibm.infrastructure.compliance.service.custom;
 
 public class RuleDefinition {
     public String name;
-    public String level; // references a level ID
+    public int levelId; // Changed from String to int
     public String description;
+
+    public String getName() {
+        return name;
+    }
+
+    public void setName(String name) {
+        this.name = name;
+    }
+
+    public int getLevelId() {
+        return levelId;
+    }
+
+    public void setLevelId(int levelId) {
+        this.levelId = levelId;
+    }
+
+    public String getDescription() {
+        return description;
+    }
+
+    public void setDescription(String description) {
+        this.description = description;
+    }
 }

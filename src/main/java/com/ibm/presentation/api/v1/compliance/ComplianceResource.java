@@ -115,8 +115,8 @@ public class ComplianceResource {
             String toml = new String(fileStream.readAllBytes(), StandardCharsets.UTF_8);
             CustomCompliancePolicy parsed = CustomPolicyParser.parse(toml);
             IComplianceService service = new CustomComplianceService(parsed);
-            complianceSelector.register(parsed.id, service);
-            return Response.ok("Policy '" + parsed.id + "' registered.").build();
+            complianceSelector.register(parsed.getId(), service);
+            return Response.ok("Policy '" + parsed.getId() + "' registered.").build();
         } catch (Exception e) {
             return Response.status(Response.Status.BAD_REQUEST)
                     .entity("Error processing TOML: " + e.getMessage())
