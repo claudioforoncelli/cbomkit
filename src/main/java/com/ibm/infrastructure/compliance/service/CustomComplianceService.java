@@ -22,21 +22,27 @@ package com.ibm.infrastructure.compliance.service;
 import com.ibm.domain.compliance.*;
 import com.ibm.infrastructure.compliance.*;
 import com.ibm.infrastructure.compliance.service.custom.*;
-import com.ibm.infrastructure.compliance.service.custom.rules.*;
 import jakarta.annotation.Nonnull;
 import java.util.*;
 import java.util.stream.Collectors;
+import org.cyclonedx.model.component.crypto.*;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class CustomComplianceService implements IComplianceService {
 
+    private static final Logger logger = LoggerFactory.getLogger(CustomComplianceService.class);
+
     private final CustomCompliancePolicy policy;
     private final Map<String, ComplianceLevel> levelMap;
+    private final List<ComplianceLevel> levels;
 
     public CustomComplianceService(CustomCompliancePolicy policy) {
         this.policy = policy;
         this.levelMap =
                 policy.getLevels().stream()
                         .collect(Collectors.toMap(l -> String.valueOf(l.id()), l -> l));
+        this.levels = new ArrayList<>(levelMap.values());
     }
 
     @Nonnull
@@ -48,7 +54,7 @@ public class CustomComplianceService implements IComplianceService {
     @Nonnull
     @Override
     public List<ComplianceLevel> getComplianceLevels() {
-        return new ArrayList<>(levelMap.values());
+        return new ArrayList<>(levels);
     }
 
     @Nonnull
@@ -56,7 +62,7 @@ public class CustomComplianceService implements IComplianceService {
     public ComplianceLevel getDefaultComplianceLevel() {
         return levelMap.getOrDefault(
                 String.valueOf(policy.getDefaultLevel()),
-                getComplianceLevels().stream()
+                levels.stream()
                         .findFirst()
                         .orElseThrow(
                                 () ->
@@ -73,40 +79,7 @@ public class CustomComplianceService implements IComplianceService {
         List<ICryptographicAssetPolicyResult> results =
                 assets.stream().map(this::evaluate).collect(Collectors.toList());
 
-        ComplianceCheckResultDTO resultDTO = new ComplianceCheckResultDTO(results, false);
-
-        System.out.println("==== Final Compliance Results ====");
-        for (ICryptographicAssetPolicyResult result : resultDTO.policyResults()) {
-            System.out.println("Asset ID: " + result.identifier());
-            System.out.println("  Compliance Level: " + result.complianceLevel().label());
-            System.out.println("  Description:\n" + result.message());
-        }
-        System.out.println("==================================");
-
-        return resultDTO;
-    }
-
-    private boolean matches(Object ruleValue, Object actualValue) {
-        if (ruleValue == null) return true;
-        if (actualValue == null) return false;
-
-        if (ruleValue instanceof String ruleStr && actualValue instanceof String actualStr) {
-            return ruleStr.trim().equalsIgnoreCase(actualStr.trim());
-        }
-
-        if (ruleValue instanceof Enum<?> ruleEnum && actualValue instanceof Enum<?> actualEnum) {
-            return ruleEnum.name().equalsIgnoreCase(actualEnum.name());
-        }
-
-        if (ruleValue instanceof Integer ruleInt && actualValue instanceof Integer actualInt) {
-            return ruleInt.equals(actualInt);
-        }
-
-        if (ruleValue instanceof Number ruleNum && actualValue instanceof Number actualNum) {
-            return ruleNum.intValue() == actualNum.intValue();
-        }
-
-        return ruleValue.toString().trim().equalsIgnoreCase(actualValue.toString().trim());
+        return new ComplianceCheckResultDTO(results, false);
     }
 
     @Nonnull
@@ -115,269 +88,193 @@ public class CustomComplianceService implements IComplianceService {
         ComplianceLevel worstLevel = getDefaultComplianceLevel();
         StringBuilder combinedDescription = new StringBuilder();
 
-        System.out.println("Evaluating asset: " + asset.identifier());
+        List<RuleDefinition> rules = policy.getRules();
+        for (RuleDefinition rule : rules) {
+            CryptoProperties ruleProps = rule.getCryptoProperties();
+            if (!Objects.equals(ruleProps.getAssetType(), props.getAssetType())) continue;
 
-        switch (props.getAssetType()) {
-            case ALGORITHM -> {
-                var alg = props.getAlgorithmProperties();
-                System.out.println("Evaluating ALGORITHM:");
-                System.out.println("Primitive: " + alg.getPrimitive());
-                System.out.println("ParameterSetIdentifier: " + alg.getParameterSetIdentifier());
-                System.out.println("Curve: " + alg.getCurve());
-                System.out.println("ExecutionEnvironment: " + alg.getExecutionEnvironment());
-                System.out.println("ImplementationPlatform: " + alg.getImplementationPlatform());
-                System.out.println("Mode: " + alg.getMode());
-                System.out.println("Padding: " + alg.getPadding());
-                System.out.println("ClassicalSecurityLevel: " + alg.getClassicalSecurityLevel());
-                System.out.println(
-                        "NistQuantumSecurityLevel: " + alg.getNistQuantumSecurityLevel());
+            logger.debug("Evaluating rule: {}", rule.getDescription());
 
-                for (AlgorithmRuleDefinition rule : policy.getAlgorithmRules()) {
-                    Boolean[] matches =
-                            new Boolean[] {
-                                matches(rule.getPrimitive(), String.valueOf(alg.getPrimitive())),
-                                matches(
-                                        rule.getParameterSetIdentifier(),
-                                        alg.getParameterSetIdentifier()),
-                                matches(rule.getCurve(), alg.getCurve()),
-                                matches(
-                                        rule.getExecutionEnvironment(),
-                                        String.valueOf(alg.getExecutionEnvironment())),
-                                matches(
-                                        rule.getImplementationPlatform(),
-                                        String.valueOf(alg.getImplementationPlatform())),
-                                matches(rule.getMode(), String.valueOf(alg.getMode())),
-                                matches(rule.getPadding(), String.valueOf(alg.getPadding())),
-                                matches(
-                                        rule.getClassicalSecurityLevel(),
-                                        alg.getClassicalSecurityLevel()),
-                                matches(
-                                        rule.getNistQuantumSecurityLevel(),
-                                        alg.getNistQuantumSecurityLevel())
-                            };
-
-                    if (Arrays.asList(matches).stream().allMatch(Boolean::booleanValue)) {
-                        boolean certLevelMatch =
-                                rule.getCertificationLevel() == null
-                                        || (alg.getCertificationLevel() != null
-                                                && alg.getCertificationLevel().stream()
-                                                        .anyMatch(
-                                                                val ->
-                                                                        rule
-                                                                                .getCertificationLevel()
-                                                                                .stream()
-                                                                                .anyMatch(
-                                                                                        r ->
-                                                                                                r
-                                                                                                        .equalsIgnoreCase(
-                                                                                                                String
-                                                                                                                        .valueOf(
-                                                                                                                                val)))));
-
-                        boolean cryptoFuncMatch =
-                                rule.getCryptoFunctions() == null
-                                        || (alg.getCryptoFunctions() != null
-                                                && alg.getCryptoFunctions().stream()
-                                                        .anyMatch(
-                                                                val ->
-                                                                        rule
-                                                                                .getCryptoFunctions()
-                                                                                .stream()
-                                                                                .anyMatch(
-                                                                                        r ->
-                                                                                                r
-                                                                                                        .equalsIgnoreCase(
-                                                                                                                String
-                                                                                                                        .valueOf(
-                                                                                                                                val)))));
-
-                        if (certLevelMatch && cryptoFuncMatch) {
-                            System.out.println(
-                                    "Matched algorithm rule: "
-                                            + rule.getDescription()
-                                            + ", Level ID: "
-                                            + rule.getLevelId());
-                            worstLevel =
-                                    updateWorstLevel(
-                                            worstLevel,
-                                            rule.getLevelId(),
-                                            rule.getDescription(),
-                                            combinedDescription);
-                        }
-                    }
-                }
+            String assetOid = props.getOid();
+            String ruleOid = ruleProps.getOid();
+            if (ruleOid != null && !matches(ruleOid, assetOid)) {
+                logger.debug(" - field 'oid': expected={}, actual={} → ✗", ruleOid, assetOid);
+                continue;
+            } else if (ruleOid != null) {
+                logger.debug(" - field 'oid': expected={}, actual={} → ✓", ruleOid, assetOid);
             }
 
-            case CERTIFICATE -> {
-                var cert = props.getCertificateProperties();
-                System.out.println("Evaluating CERTIFICATE:");
-                System.out.println("SubjectName: " + cert.getSubjectName());
-                System.out.println("IssuerName: " + cert.getIssuerName());
-                System.out.println("NotValidBefore: " + cert.getNotValidBefore());
-                System.out.println("NotValidAfter: " + cert.getNotValidAfter());
-                System.out.println("SignatureAlgorithmRef: " + cert.getSignatureAlgorithmRef());
-                System.out.println("SubjectPublicKeyRef: " + cert.getSubjectPublicKeyRef());
-                System.out.println("CertificateFormat: " + cert.getCertificateFormat());
-                System.out.println("CertificateExtension: " + cert.getCertificateExtension());
-
-                for (CertificateRuleDefinition rule : policy.getCertificateRules()) {
-                    Boolean[] matches =
-                            new Boolean[] {
-                                matches(rule.getSubjectName(), cert.getSubjectName()),
-                                matches(rule.getIssuerName(), cert.getIssuerName()),
-                                matches(rule.getNotValidBefore(), cert.getNotValidBefore()),
-                                matches(rule.getNotValidAfter(), cert.getNotValidAfter()),
-                                matches(
-                                        rule.getSignatureAlgorithmRef(),
-                                        cert.getSignatureAlgorithmRef()),
-                                matches(
-                                        rule.getSubjectPublicKeyRef(),
-                                        cert.getSubjectPublicKeyRef()),
-                                matches(rule.getCertificateFormat(), cert.getCertificateFormat()),
-                                matches(
-                                        rule.getCertificateExtension(),
-                                        cert.getCertificateExtension())
-                            };
-
-                    if (Arrays.asList(matches).stream().allMatch(Boolean::booleanValue)) {
-                        System.out.println("Matched certificate rule: " + rule.getDescription());
-                        worstLevel =
-                                updateWorstLevel(
-                                        worstLevel,
-                                        rule.getLevelId(),
-                                        rule.getDescription(),
-                                        combinedDescription);
-                    }
-                }
+            String assetName = asset.component().getName();
+            String ruleName = rule.getName();
+            if (ruleName != null && !matches(ruleName, assetName)) {
+                logger.debug(" - field 'name': expected={}, actual={} → ✗", ruleName, assetName);
+                continue;
+            } else if (ruleName != null) {
+                logger.debug(" - field 'name': expected={}, actual={} → ✓", ruleName, assetName);
             }
 
-            case PROTOCOL -> {
-                var proto = props.getProtocolProperties();
-                System.out.println("Evaluating PROTOCOL:");
-                System.out.println("Type: " + proto.getType());
-                System.out.println("Version: " + proto.getVersion());
+            boolean matched =
+                    switch (props.getAssetType()) {
+                        case ALGORITHM ->
+                                matchAlgorithm(
+                                        props.getAlgorithmProperties(),
+                                        ruleProps.getAlgorithmProperties());
+                        case CERTIFICATE ->
+                                matchCertificate(
+                                        props.getCertificateProperties(),
+                                        ruleProps.getCertificateProperties());
+                        case PROTOCOL ->
+                                matchProtocol(
+                                        props.getProtocolProperties(),
+                                        ruleProps.getProtocolProperties());
+                        case RELATED_CRYPTO_MATERIAL ->
+                                matchRelatedMaterial(
+                                        props.getRelatedCryptoMaterialProperties(),
+                                        ruleProps.getRelatedCryptoMaterialProperties());
+                        default -> false;
+                    };
 
-                for (ProtocolRuleDefinition rule : policy.getProtocolRules()) {
-                    Boolean[] matches =
-                            new Boolean[] {
-                                matches(rule.getType(), proto.getType()),
-                                matches(rule.getVersion(), proto.getVersion())
-                            };
-
-                    boolean cipherMatch =
-                            rule.getCipherSuites() == null
-                                    || (proto.getCipherSuites() != null
-                                            && proto.getCipherSuites().stream()
-                                                    .anyMatch(
-                                                            protoSuite ->
-                                                                    rule.getCipherSuites().stream()
-                                                                            .anyMatch(
-                                                                                    ruleSuite ->
-                                                                                            ruleSuite
-                                                                                                    .getName()
-                                                                                                    .equalsIgnoreCase(
-                                                                                                            protoSuite
-                                                                                                                    .getName()))));
-
-                    boolean ikeMatch = true;
-                    if (rule.getIkev2TransformTypes() != null
-                            && proto.getIkev2TransformTypes() != null) {
-                        ikeMatch =
-                                rule.getIkev2TransformTypes().entrySet().stream()
-                                        .allMatch(
-                                                e -> {
-                                                    var protoRef =
-                                                            proto.getIkev2TransformTypes()
-                                                                    .get(e.getKey());
-                                                    return protoRef != null
-                                                            && protoRef.getRef() != null
-                                                            && new HashSet<>(protoRef.getRef())
-                                                                    .containsAll(
-                                                                            e.getValue().getRef());
-                                                });
-                    }
-
-                    if (Arrays.asList(matches).stream().allMatch(Boolean::booleanValue)
-                            && cipherMatch
-                            && ikeMatch) {
-                        System.out.println("Matched protocol rule: " + rule.getDescription());
-                        worstLevel =
-                                updateWorstLevel(
-                                        worstLevel,
-                                        rule.getLevelId(),
-                                        rule.getDescription(),
-                                        combinedDescription);
-                    }
-                }
-            }
-
-            case RELATED_CRYPTO_MATERIAL -> {
-                var mat = props.getRelatedCryptoMaterialProperties();
-                System.out.println("Evaluating RELATED_CRYPTO_MATERIAL:");
-                System.out.println("Type: " + mat.getType());
-                System.out.println("Id: " + mat.getId());
-                System.out.println("State: " + mat.getState());
-                System.out.println("AlgorithmRef: " + mat.getAlgorithmRef());
-                System.out.println("CreationDate: " + mat.getCreationDate());
-                System.out.println("ActivationDate: " + mat.getActivationDate());
-                System.out.println("UpdateDate: " + mat.getUpdateDate());
-                System.out.println("ExpirationDate: " + mat.getExpirationDate());
-                System.out.println("Value: " + mat.getValue());
-                System.out.println("Size: " + mat.getSize());
-                System.out.println("Format: " + mat.getFormat());
-
-                for (RelatedCryptoMaterialRules rule : policy.getRelatedCryptoMaterialRules()) {
-                    Boolean[] matches =
-                            new Boolean[] {
-                                matches(rule.getType(), mat.getType()),
-                                matches(rule.getId(), mat.getId()),
-                                matches(rule.getState(), mat.getState()),
-                                matches(rule.getAlgorithmRef(), mat.getAlgorithmRef()),
-                                matches(rule.getCreationDate(), mat.getCreationDate()),
-                                matches(rule.getActivationDate(), mat.getActivationDate()),
-                                matches(rule.getUpdateDate(), mat.getUpdateDate()),
-                                matches(rule.getExpirationDate(), mat.getExpirationDate()),
-                                matches(rule.getValue(), mat.getValue()),
-                                matches(rule.getSize(), mat.getSize()),
-                                matches(rule.getFormat(), mat.getFormat())
-                            };
-
-                    if (Arrays.asList(matches).stream().allMatch(Boolean::booleanValue)) {
-                        System.out.println(
-                                "Matched crypto material rule: " + rule.getDescription());
-                        worstLevel =
-                                updateWorstLevel(
-                                        worstLevel,
-                                        rule.getLevelId(),
-                                        rule.getDescription(),
-                                        combinedDescription);
-                    }
-                }
-            }
-
-            default -> {
-                System.out.println(
-                        "No compliance rules implemented for asset type: " + props.getAssetType());
-                combinedDescription
-                        .append("No compliance rules implemented for asset type: ")
-                        .append(props.getAssetType());
+            if (matched) {
+                logger.debug("Rule matched.");
+                worstLevel =
+                        updateWorstLevel(
+                                worstLevel,
+                                rule.getLevelId(),
+                                rule.getDescription(),
+                                combinedDescription);
+            } else {
+                logger.debug("Rule did not match.");
             }
         }
 
         if (combinedDescription.isEmpty()) {
-            System.out.println("No compliance rules matched for asset: " + asset.identifier());
             combinedDescription
                     .append("No compliance rules matched for asset type: ")
                     .append(props.getAssetType());
-        } else {
-            System.out.println(
-                    "Asset " + asset.identifier() + " evaluated with level " + worstLevel.id());
         }
 
         return new BasicCryptographicAssetPolicyResult(
                 asset.identifier().toLowerCase(),
                 worstLevel,
                 combinedDescription.toString().trim());
+    }
+
+    private boolean matchAlgorithm(AlgorithmProperties actual, AlgorithmProperties rule) {
+        if (rule == null || actual == null) return false;
+        if (!fieldMatch("primitive", rule.getPrimitive(), actual.getPrimitive())) return false;
+        if (!fieldMatch(
+                "parameterSetIdentifier",
+                rule.getParameterSetIdentifier(),
+                actual.getParameterSetIdentifier())) return false;
+        if (!fieldMatch("curve", rule.getCurve(), actual.getCurve())) return false;
+        if (!fieldMatch(
+                "executionEnvironment",
+                rule.getExecutionEnvironment(),
+                actual.getExecutionEnvironment())) return false;
+        if (!fieldMatch(
+                "implementationPlatform",
+                rule.getImplementationPlatform(),
+                actual.getImplementationPlatform())) return false;
+        if (!fieldMatch("mode", rule.getMode(), actual.getMode())) return false;
+        if (!fieldMatch("padding", rule.getPadding(), actual.getPadding())) return false;
+        if (!fieldMatch(
+                "classicalSecurityLevel",
+                rule.getClassicalSecurityLevel(),
+                actual.getClassicalSecurityLevel())) return false;
+        if (!fieldMatch(
+                "nistQuantumSecurityLevel",
+                rule.getNistQuantumSecurityLevel(),
+                actual.getNistQuantumSecurityLevel())) return false;
+        if (!fieldMatch(
+                "certificationLevel", rule.getCertificationLevel(), actual.getCertificationLevel()))
+            return false;
+        if (!fieldMatch("cryptoFunctions", rule.getCryptoFunctions(), actual.getCryptoFunctions()))
+            return false;
+        return true;
+    }
+
+    private boolean matchCertificate(CertificateProperties actual, CertificateProperties rule) {
+        if (rule == null || actual == null) return false;
+        if (!fieldMatch("subjectName", rule.getSubjectName(), actual.getSubjectName()))
+            return false;
+        if (!fieldMatch("issuerName", rule.getIssuerName(), actual.getIssuerName())) return false;
+        if (!fieldMatch("notValidBefore", rule.getNotValidBefore(), actual.getNotValidBefore()))
+            return false;
+        if (!fieldMatch("notValidAfter", rule.getNotValidAfter(), actual.getNotValidAfter()))
+            return false;
+        if (!fieldMatch(
+                "signatureAlgorithmRef",
+                rule.getSignatureAlgorithmRef(),
+                actual.getSignatureAlgorithmRef())) return false;
+        if (!fieldMatch(
+                "subjectPublicKeyRef",
+                rule.getSubjectPublicKeyRef(),
+                actual.getSubjectPublicKeyRef())) return false;
+        if (!fieldMatch(
+                "certificateFormat", rule.getCertificateFormat(), actual.getCertificateFormat()))
+            return false;
+        if (!fieldMatch(
+                "certificateExtension",
+                rule.getCertificateExtension(),
+                actual.getCertificateExtension())) return false;
+        return true;
+    }
+
+    private boolean matchProtocol(ProtocolProperties actual, ProtocolProperties rule) {
+        if (rule == null || actual == null) return false;
+        boolean result = true;
+        result &= fieldMatch("type", rule.getType(), actual.getType());
+        result &= fieldMatch("version", rule.getVersion(), actual.getVersion());
+        if (rule.getCipherSuites() != null) {
+            boolean suiteMatch =
+                    actual.getCipherSuites() != null
+                            && actual.getCipherSuites().stream()
+                                    .anyMatch(
+                                            protoSuite ->
+                                                    rule.getCipherSuites().stream()
+                                                            .anyMatch(
+                                                                    ruleSuite ->
+                                                                            ruleSuite
+                                                                                    .getName()
+                                                                                    .equalsIgnoreCase(
+                                                                                            protoSuite
+                                                                                                    .getName())));
+            logger.debug(" - field 'cipherSuites': expected contains ≈ actual? {}", suiteMatch);
+            result &= suiteMatch;
+        }
+        return result;
+    }
+
+    private boolean matchRelatedMaterial(
+            RelatedCryptoMaterialProperties actual, RelatedCryptoMaterialProperties rule) {
+        if (rule == null || actual == null) return false;
+        if (!fieldMatch("type", rule.getType(), actual.getType())) return false;
+        if (!fieldMatch("id", rule.getId(), actual.getId())) return false;
+        if (!fieldMatch("state", rule.getState(), actual.getState())) return false;
+        if (!fieldMatch("algorithmRef", rule.getAlgorithmRef(), actual.getAlgorithmRef()))
+            return false;
+        if (!fieldMatch("creationDate", rule.getCreationDate(), actual.getCreationDate()))
+            return false;
+        if (!fieldMatch("activationDate", rule.getActivationDate(), actual.getActivationDate()))
+            return false;
+        if (!fieldMatch("updateDate", rule.getUpdateDate(), actual.getUpdateDate())) return false;
+        if (!fieldMatch("expirationDate", rule.getExpirationDate(), actual.getExpirationDate()))
+            return false;
+        if (!fieldMatch("value", rule.getValue(), actual.getValue())) return false;
+        if (!fieldMatch("size", rule.getSize(), actual.getSize())) return false;
+        if (!fieldMatch("format", rule.getFormat(), actual.getFormat())) return false;
+        return true;
+    }
+
+    private boolean fieldMatch(String field, Object ruleValue, Object actualValue) {
+        boolean match = matches(ruleValue, actualValue);
+        logger.debug(
+                " - field '{}': expected={}, actual={} → {}",
+                field,
+                Objects.toString(ruleValue, "null"),
+                Objects.toString(actualValue, "null"),
+                match ? "✓" : "✗");
+        return match;
     }
 
     private ComplianceLevel updateWorstLevel(
@@ -392,5 +289,24 @@ public class CustomComplianceService implements IComplianceService {
         }
         descriptionBuilder.append("- ").append(description).append("\n");
         return currentLevel;
+    }
+
+    private boolean matches(Object ruleValue, Object actualValue) {
+        if (ruleValue == null) return true;
+        if (actualValue == null) return false;
+
+        if (ruleValue instanceof String ruleStr && actualValue instanceof String actualStr) {
+            return ruleStr.trim().equalsIgnoreCase(actualStr.trim());
+        }
+        if (ruleValue instanceof Enum<?> ruleEnum && actualValue instanceof Enum<?> actualEnum) {
+            return ruleEnum.name().equalsIgnoreCase(actualEnum.name());
+        }
+        if (ruleValue instanceof Integer ruleInt && actualValue instanceof Integer actualInt) {
+            return ruleInt.equals(actualInt);
+        }
+        if (ruleValue instanceof Number ruleNum && actualValue instanceof Number actualNum) {
+            return ruleNum.intValue() == actualNum.intValue();
+        }
+        return ruleValue.toString().trim().equalsIgnoreCase(actualValue.toString().trim());
     }
 }

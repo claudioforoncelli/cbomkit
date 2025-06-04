@@ -26,13 +26,25 @@ import jakarta.annotation.Nonnull;
 import java.util.*;
 import org.cyclonedx.model.component.crypto.AlgorithmProperties;
 import org.cyclonedx.model.component.crypto.CryptoProperties;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class NISTSP800131AR3ComplianceService implements IComplianceService {
+
+    private static final Logger logger =
+            LoggerFactory.getLogger(NISTSP800131AR3ComplianceService.class);
+
     @Nonnull private final Map<Integer, ComplianceLevel> complianceLevels;
 
+    private final ComplianceLevel DISALLOWED;
+    private final ComplianceLevel DEPRECATED;
+    private final ComplianceLevel ACCEPTABLE;
+    private final ComplianceLevel LEGACY_USE;
+    private final ComplianceLevel UNKNOWN;
+
     public NISTSP800131AR3ComplianceService() {
-        complianceLevels = new HashMap<>();
-        complianceLevels.put(
+        Map<Integer, ComplianceLevel> levels = new HashMap<>();
+        levels.put(
                 1,
                 new ComplianceLevel(
                         1,
@@ -41,7 +53,7 @@ public class NISTSP800131AR3ComplianceService implements IComplianceService {
                         "#dc3545",
                         ComplianceLevel.ComplianceIcon.ERROR,
                         true));
-        complianceLevels.put(
+        levels.put(
                 2,
                 new ComplianceLevel(
                         2,
@@ -50,7 +62,7 @@ public class NISTSP800131AR3ComplianceService implements IComplianceService {
                         "#ffc107",
                         ComplianceLevel.ComplianceIcon.WARNING,
                         true));
-        complianceLevels.put(
+        levels.put(
                 3,
                 new ComplianceLevel(
                         3,
@@ -59,7 +71,7 @@ public class NISTSP800131AR3ComplianceService implements IComplianceService {
                         "green",
                         ComplianceLevel.ComplianceIcon.CHECKMARK_SECURE,
                         false));
-        complianceLevels.put(
+        levels.put(
                 4,
                 new ComplianceLevel(
                         4,
@@ -68,7 +80,7 @@ public class NISTSP800131AR3ComplianceService implements IComplianceService {
                         "gray",
                         ComplianceLevel.ComplianceIcon.NOT_APPLICABLE,
                         false));
-        complianceLevels.put(
+        levels.put(
                 5,
                 new ComplianceLevel(
                         5,
@@ -77,6 +89,13 @@ public class NISTSP800131AR3ComplianceService implements IComplianceService {
                         "#17a9d1",
                         ComplianceLevel.ComplianceIcon.UNKNOWN,
                         true));
+
+        this.complianceLevels = Collections.unmodifiableMap(levels);
+        this.DISALLOWED = complianceLevels.get(1);
+        this.DEPRECATED = complianceLevels.get(2);
+        this.ACCEPTABLE = complianceLevels.get(3);
+        this.LEGACY_USE = complianceLevels.get(4);
+        this.UNKNOWN = complianceLevels.get(5);
     }
 
     @Nonnull
@@ -94,118 +113,137 @@ public class NISTSP800131AR3ComplianceService implements IComplianceService {
     @Nonnull
     @Override
     public ComplianceLevel getDefaultComplianceLevel() {
-        return this.complianceLevels.get(5);
+        return UNKNOWN;
     }
 
     @Override
     public @Nonnull ComplianceCheckResultDTO evaluate(
             @Nonnull PolicyIdentifier policyIdentifier,
             @Nonnull Collection<CryptographicAsset> cryptographicAssets) {
-        if (!policyIdentifier.id().equals("nist_sp_800_131_ar3")) {
+
+        if (!"nist_sp_800_131_ar3".equals(policyIdentifier.id())) {
             return new ComplianceCheckResultDTO(List.of(), true);
         }
-        return new ComplianceCheckResultDTO(
-                cryptographicAssets.stream().map(this::evaluate).toList(), false);
+
+        List<ICryptographicAssetPolicyResult> results =
+                cryptographicAssets.stream().map(this::evaluate).toList();
+
+        logger.debug("==== NIST SP800-131A Rev. 3 Compliance Evaluation ====");
+        for (ICryptographicAssetPolicyResult result : results) {
+            logger.debug(
+                    "Asset ID: {}\n  Compliance Level: {}\n  Description: {}",
+                    result.identifier(),
+                    result.complianceLevel().label(),
+                    result.message());
+        }
+        logger.debug("======================================================");
+
+        return new ComplianceCheckResultDTO(results, false);
     }
 
-    @SuppressWarnings("java:S3776")
     @Nonnull
-    private ICryptographicAssetPolicyResult evaluate(
-            @Nonnull CryptographicAsset cryptographicAsset) {
-        final CryptoProperties cryptoProperties =
-                cryptographicAsset.component().getCryptoProperties();
-        final AlgorithmProperties algorithmProperties = cryptoProperties.getAlgorithmProperties();
-        final String name =
-                cryptographicAsset.component().getName() != null
-                        ? cryptographicAsset.component().getName().toLowerCase()
-                        : "";
-        final String mode =
-                algorithmProperties != null && algorithmProperties.getMode() != null
-                        ? algorithmProperties.getMode().toString().toLowerCase()
-                        : "";
+    private ICryptographicAssetPolicyResult evaluate(@Nonnull CryptographicAsset asset) {
+        final String assetId = asset.identifier();
+        final CryptoProperties props = asset.component().getCryptoProperties();
+        final AlgorithmProperties alg = props.getAlgorithmProperties();
 
-        // Rule: SHA-1 and SHA-224 are deprecated (disallowed after 2030)
+        final String name =
+                Optional.ofNullable(asset.component().getName()).orElse("").toLowerCase();
+        final String mode =
+                alg != null && alg.getMode() != null ? alg.getMode().toString().toLowerCase() : "";
+
+        logger.debug("Evaluating asset: {}\n  Name: {}\n  Mode: {}", assetId, name, mode);
+
         if (name.contains("sha1")) {
+            logger.debug("  Matched rule: SHA-1 is deprecated");
             return new BasicCryptographicAssetPolicyResult(
-                    cryptographicAsset.identifier(),
-                    complianceLevels.get(2),
+                    assetId,
+                    DEPRECATED,
                     "SHA-1 is deprecated and disallowed after 2030, as specified in section 1.2 of the guideline.");
-        } else if (name.contains("sha224")) {
+        }
+
+        if (name.contains("sha224")) {
+            logger.debug("  Matched rule: SHA-224 is deprecated");
             return new BasicCryptographicAssetPolicyResult(
-                    cryptographicAsset.identifier(),
-                    complianceLevels.get(2),
+                    assetId,
+                    DEPRECATED,
                     "SHA-224 is deprecated and disallowed after 2030, as specified in section 1.2 of the guideline.");
         }
 
-        // Rule: AES is always acceptable
         if (name.contains("aes")) {
+            logger.debug("  Matched rule: AES is acceptable");
             return new BasicCryptographicAssetPolicyResult(
-                    cryptographicAsset.identifier(),
-                    complianceLevels.get(3),
+                    assetId,
+                    ACCEPTABLE,
                     "AES is acceptable at all key sizes (128+), as specified in section 2.1 of the guideline.");
         }
 
-        // Rule: TDEA is disallowed
         if (name.contains("tdea") || name.contains("3des") || name.contains("triple des")) {
+            logger.debug("  Matched rule: TDEA is disallowed");
             return new BasicCryptographicAssetPolicyResult(
-                    cryptographicAsset.identifier(),
-                    complianceLevels.get(1),
+                    assetId,
+                    DISALLOWED,
                     "TDEA is disallowed, as specified in section 2.1 of the guideline.");
         }
 
-        // Modes
         if (mode.contains("ecb")) {
+            logger.debug("  Matched rule: ECB mode (legacy use)");
             return new BasicCryptographicAssetPolicyResult(
-                    cryptographicAsset.identifier(),
-                    complianceLevels.get(4),
-                    "ECB mode is disallowed for encryption but "
-                            + "allowed as legacy use for decryption, as specified in section 2.2 of the guideline.");
+                    assetId,
+                    LEGACY_USE,
+                    "ECB mode is disallowed for encryption but allowed as legacy use for decryption, as specified in section 2.2 of the guideline.");
         } else if (mode.contains("cbc")) {
+            logger.debug("  Matched rule: CBC mode is acceptable");
             return new BasicCryptographicAssetPolicyResult(
-                    cryptographicAsset.identifier(),
-                    complianceLevels.get(3),
+                    assetId,
+                    ACCEPTABLE,
                     "CBC mode is acceptable, as specified in section 2.2 of the guideline.");
         } else if (mode.contains("cfb")) {
+            logger.debug("  Matched rule: CFB mode is acceptable");
             return new BasicCryptographicAssetPolicyResult(
-                    cryptographicAsset.identifier(),
-                    complianceLevels.get(3),
+                    assetId,
+                    ACCEPTABLE,
                     "CFB mode is acceptable, as specified in section 2.2 of the guideline.");
         } else if (mode.contains("ctr")) {
+            logger.debug("  Matched rule: CTR mode is acceptable");
             return new BasicCryptographicAssetPolicyResult(
-                    cryptographicAsset.identifier(),
-                    complianceLevels.get(3),
+                    assetId,
+                    ACCEPTABLE,
                     "CTR mode is acceptable, as specified in section 2.2 of the guideline.");
         } else if (mode.contains("ofb")) {
+            logger.debug("  Matched rule: OFB mode is acceptable");
             return new BasicCryptographicAssetPolicyResult(
-                    cryptographicAsset.identifier(),
-                    complianceLevels.get(3),
+                    assetId,
+                    ACCEPTABLE,
                     "OFB mode is acceptable, as specified in section 2.2 of the guideline.");
         } else if (mode.contains("ccm")) {
+            logger.debug("  Matched rule: CCM mode is acceptable");
             return new BasicCryptographicAssetPolicyResult(
-                    cryptographicAsset.identifier(),
-                    complianceLevels.get(3),
+                    assetId,
+                    ACCEPTABLE,
                     "CCM mode is acceptable, as specified in section 2.2 of the guideline.");
         } else if (mode.contains("gcm")) {
+            logger.debug("  Matched rule: GCM mode is acceptable");
             return new BasicCryptographicAssetPolicyResult(
-                    cryptographicAsset.identifier(),
-                    complianceLevels.get(3),
+                    assetId,
+                    ACCEPTABLE,
                     "GCM mode is acceptable, as specified in section 2.2 of the guideline.");
         } else if (mode.contains("xts")) {
+            logger.debug("  Matched rule: XTS mode is acceptable");
             return new BasicCryptographicAssetPolicyResult(
-                    cryptographicAsset.identifier(),
-                    complianceLevels.get(3),
+                    assetId,
+                    ACCEPTABLE,
                     "XTS-AES mode is acceptable, as specified in section 2.2 of the guideline.");
         } else if (mode.contains("ff3")) {
+            logger.debug("  Matched rule: FF3 mode is disallowed");
             return new BasicCryptographicAssetPolicyResult(
-                    cryptographicAsset.identifier(),
-                    complianceLevels.get(1),
+                    assetId,
+                    DISALLOWED,
                     "FF3 mode is disallowed, as specified in section 2.2 of the guideline.");
         }
 
-        // Default fallback
+        logger.debug("  No rule matched. Returning 'Unknown'");
         return new BasicCryptographicAssetPolicyResult(
-                cryptographicAsset.identifier(),
-                complianceLevels.get(5),
-                "Could not categorize this asset");
+                assetId, UNKNOWN, "Could not categorize this asset");
     }
 }

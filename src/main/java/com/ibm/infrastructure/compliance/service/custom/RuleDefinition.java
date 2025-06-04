@@ -19,10 +19,13 @@
  */
 package com.ibm.infrastructure.compliance.service.custom;
 
+import org.cyclonedx.model.component.crypto.CryptoProperties;
+
 public class RuleDefinition {
-    public String name;
-    public int levelId; // Changed from String to int
-    public String description;
+    private String name;
+    private CryptoProperties cryptoProperties;
+    private String description;
+    private Integer levelId;
 
     public String getName() {
         return name;
@@ -32,12 +35,12 @@ public class RuleDefinition {
         this.name = name;
     }
 
-    public int getLevelId() {
-        return levelId;
+    public CryptoProperties getCryptoProperties() {
+        return cryptoProperties;
     }
 
-    public void setLevelId(int levelId) {
-        this.levelId = levelId;
+    public void setCryptoProperties(CryptoProperties cryptoProperties) {
+        this.cryptoProperties = cryptoProperties;
     }
 
     public String getDescription() {
@@ -46,5 +49,13 @@ public class RuleDefinition {
 
     public void setDescription(String description) {
         this.description = description;
+    }
+
+    public Integer getLevelId() {
+        return levelId;
+    }
+
+    public void setLevelId(Integer levelId) {
+        this.levelId = levelId;
     }
 }

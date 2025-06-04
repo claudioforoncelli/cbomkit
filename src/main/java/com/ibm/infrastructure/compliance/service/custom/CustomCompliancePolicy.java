@@ -20,7 +20,6 @@
 package com.ibm.infrastructure.compliance.service.custom;
 
 import com.ibm.infrastructure.compliance.ComplianceLevel;
-import com.ibm.infrastructure.compliance.service.custom.rules.*;
 import java.util.List;
 
 public class CustomCompliancePolicy {
@@ -28,13 +27,7 @@ public class CustomCompliancePolicy {
     private String name;
     private int defaultLevel;
     private List<ComplianceLevel> levels;
-
-    private List<AlgorithmRuleDefinition> algorithmRules;
-    private List<CertificateRuleDefinition> certificateRules;
-    private List<RelatedCryptoMaterialRules> relatedCryptoMaterialRules;
-    private List<ProtocolRuleDefinition> protocolRules;
-
-    private List<RuleDefinition> hashAlgorithms;
+    private List<RuleDefinition> rules;
 
     public String getId() {
         return id;
@@ -68,44 +61,11 @@ public class CustomCompliancePolicy {
         this.levels = levels;
     }
 
-    public List<RuleDefinition> getHashAlgorithms() {
-        return hashAlgorithms;
+    public List<RuleDefinition> getRules() {
+        return rules;
     }
 
-    public void setHashAlgorithms(List<RuleDefinition> hashAlgorithms) {
-        this.hashAlgorithms = hashAlgorithms;
-    }
-
-    public List<AlgorithmRuleDefinition> getAlgorithmRules() {
-        return algorithmRules;
-    }
-
-    public void setAlgorithmRules(List<AlgorithmRuleDefinition> algorithmRules) {
-        this.algorithmRules = algorithmRules;
-    }
-
-    public List<CertificateRuleDefinition> getCertificateRules() {
-        return certificateRules;
-    }
-
-    public void setCertificateRules(List<CertificateRuleDefinition> certificateRules) {
-        this.certificateRules = certificateRules;
-    }
-
-    public List<RelatedCryptoMaterialRules> getRelatedCryptoMaterialRules() {
-        return relatedCryptoMaterialRules;
-    }
-
-    public void setRelatedCryptoMaterialRules(
-            List<RelatedCryptoMaterialRules> relatedCryptoMaterialRules) {
-        this.relatedCryptoMaterialRules = relatedCryptoMaterialRules;
-    }
-
-    public List<ProtocolRuleDefinition> getProtocolRules() {
-        return protocolRules;
-    }
-
-    public void setProtocolRules(List<ProtocolRuleDefinition> protocolRules) {
-        this.protocolRules = protocolRules;
+    public void setRules(List<RuleDefinition> rules) {
+        this.rules = rules;
     }
 }
