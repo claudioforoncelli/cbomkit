@@ -14,27 +14,35 @@
         {{ getTitle }}
       </span>
 
-      <!-- Updated dropdown to use availablePolicies -->
-      <select v-model="model.selectedPolicyIdentifier" style="margin-left: 16px;">
-        <option
-            v-for="policy in model.availablePolicies"
-            :key="policy.id"
-            :value="policy.id"
+      <!-- Right-aligned wrapper for dropdown and theme button -->
+      <div style="display: flex; align-items: center; margin-left: auto;">
+        <cv-select
+            label="Select a policy"
+            hideLabel
+            v-model="model.selectedPolicyIdentifier"
+            class="custom-dark-dropdown"
+            style="margin-right: 16px; display: inline-flex; width: auto; vertical-align: middle;"
         >
-          {{ policy.label }}
-        </option>
-      </select>
+          <cv-select-option
+              v-for="policy in model.availablePolicies"
+              :key="policy.id"
+              :value="policy.id"
+          >
+            {{ policy.label }}
+          </cv-select-option>
+        </cv-select>
 
-      <cv-header-global-action
-          @click="updateTheme"
-          :label="tipText"
-          tipPosition="bottom"
-          tipAlignment="end"
-      >
-        <BrightnessContrast24 v-if="renderedTheme == 'auto'" />
-        <Awake24 v-if="renderedTheme == 'light'" />
-        <Moon24 v-if="renderedTheme == 'dark'" />
-      </cv-header-global-action>
+        <cv-header-global-action
+            @click="updateTheme"
+            :label="tipText"
+            tipPosition="bottom"
+            tipAlignment="end"
+        >
+          <BrightnessContrast24 v-if="renderedTheme == 'auto'" />
+          <Awake24 v-if="renderedTheme == 'light'" />
+          <Moon24 v-if="renderedTheme == 'dark'" />
+        </cv-header-global-action>
+      </div>
     </template>
   </cv-header>
 </template>
@@ -43,6 +51,13 @@
 import { model } from "@/model.js";
 import { getTitle } from "@/helpers.js";
 import { Awake24, Moon24, BrightnessContrast24 } from "@carbon/icons-vue";
+import {
+  CvSelect,
+  CvSelectOption,
+  CvHeader,
+  CvHeaderName,
+  CvHeaderGlobalAction,
+} from "@carbon/vue";
 
 export default {
   name: "HeaderBar",
@@ -57,6 +72,11 @@ export default {
     Awake24,
     Moon24,
     BrightnessContrast24,
+    CvSelect,
+    CvSelectOption,
+    CvHeader,
+    CvHeaderName,
+    CvHeaderGlobalAction,
   },
   computed: {
     getTitle,
@@ -82,7 +102,6 @@ export default {
     },
   },
   async mounted() {
-    // Theme handling
     const darkModeMediaQuery = window.matchMedia("(prefers-color-scheme: dark)");
     const darkModeChanged = (e) => {
       this.isDarkModeOS = e.matches;
@@ -94,10 +113,33 @@ export default {
     this.isDarkModeOS = darkModeMediaQuery.matches;
     model.useDarkMode = this.isDarkModeOS;
 
-    // ✅ Load policy list if not loaded yet
     if (model.availablePolicies.length === 0 && typeof model.reloadPolicyIdentifiers === "function") {
       await model.reloadPolicyIdentifiers();
     }
   },
 };
 </script>
+
+<style>
+.custom-dark-dropdown {
+  max-width: 100%;
+}
+
+.custom-dark-dropdown .bx--select {
+  width: auto;
+}
+
+.custom-dark-dropdown .bx--select-input {
+  background-color: #1f1f1f;
+  color: white;
+  border: 1px solid #444;
+  min-width: unset;
+  width: auto;
+  padding-right: 2rem; /* space for dropdown arrow */
+  white-space: nowrap;
+}
+
+.custom-dark-dropdown .bx--select__arrow {
+  fill: white;
+}
+</style>

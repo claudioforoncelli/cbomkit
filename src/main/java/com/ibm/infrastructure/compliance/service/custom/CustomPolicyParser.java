@@ -124,11 +124,13 @@ public class CustomPolicyParser {
                     if (table.contains("crypto_functions"))
                         alg.setCryptoFunctions(
                                 toEnumList(
-                                        table.getArray("crypto_functions"), CryptoFunction.class));
+                                        Objects.requireNonNull(table.getArray("crypto_functions")),
+                                        CryptoFunction.class));
                     if (table.contains("certification_level"))
                         alg.setCertificationLevel(
                                 toEnumList(
-                                        table.getArray("certification_level"),
+                                        Objects.requireNonNull(
+                                                table.getArray("certification_level")),
                                         CertificationLevel.class));
                     if (table.contains("classical_security_level"))
                         alg.setClassicalSecurityLevel(
@@ -156,7 +158,9 @@ public class CustomPolicyParser {
                         proto.setType(parseEnum(table, "type", ProtocolType.class));
                     proto.setVersion(table.getString("version"));
                     if (table.contains("cipher_suites"))
-                        proto.setCipherSuites(parseCipherSuites(table.getArray("cipher_suites")));
+                        proto.setCipherSuites(
+                                parseCipherSuites(
+                                        Objects.requireNonNull(table.getArray("cipher_suites"))));
                     props.setProtocolProperties(proto);
                 }
                 case RELATED_CRYPTO_MATERIAL -> {

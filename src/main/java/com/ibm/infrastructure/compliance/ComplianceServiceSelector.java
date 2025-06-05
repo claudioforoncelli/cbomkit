@@ -21,7 +21,6 @@ package com.ibm.infrastructure.compliance;
 
 import com.ibm.infrastructure.compliance.service.BasicQuantumSafeComplianceService;
 import com.ibm.infrastructure.compliance.service.IComplianceService;
-import com.ibm.infrastructure.compliance.service.NISTSP800131AR3ComplianceService;
 import jakarta.annotation.PostConstruct;
 import jakarta.enterprise.context.ApplicationScoped;
 import java.util.ArrayList;
@@ -39,11 +38,9 @@ public class ComplianceServiceSelector {
     public void init() {
         // Instantiate available compliance services
         IComplianceService quantumSafeService = new BasicQuantumSafeComplianceService();
-        IComplianceService nistService = new NISTSP800131AR3ComplianceService();
 
         // Register them with identifiers
         services.put("quantum_safe", quantumSafeService);
-        services.put("nist_sp_800_131_ar3", nistService);
 
         // Define the default service
         this.defaultService = quantumSafeService;
@@ -63,8 +60,7 @@ public class ComplianceServiceSelector {
 
     public boolean remove(String policyIdentifier) {
         // Prevent deleting built-in policies
-        if (policyIdentifier.equals("quantum_safe")
-                || policyIdentifier.equals("nist_sp_800_131_ar3")) {
+        if (policyIdentifier.equals("quantum_safe")) {
             return false;
         }
 
