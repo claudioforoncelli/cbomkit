@@ -112,7 +112,10 @@ export function globalComplianceResult() {
 
 // Returns the name of the compliance policy
 export function getCompliancePolicyName() {
-    return hasValidComplianceResults() ? model.policyCheckResult.policyName : "";
+  const selected = model.availablePolicies.find(
+      (p) => p.id === model.selectedPolicyIdentifier
+  );
+  return selected?.label || selected?.id || "Unknown";
 }
 
 // Returns the name of the compliance service

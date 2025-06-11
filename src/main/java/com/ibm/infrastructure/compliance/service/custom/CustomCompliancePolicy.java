@@ -19,7 +19,9 @@
  */
 package com.ibm.infrastructure.compliance.service.custom;
 
+import com.ibm.infrastructure.compliance.AssessmentLevel;
 import com.ibm.infrastructure.compliance.ComplianceLevel;
+import edu.umd.cs.findbugs.annotations.Nullable;
 import java.util.List;
 
 public class CustomCompliancePolicy {
@@ -28,6 +30,7 @@ public class CustomCompliancePolicy {
     private int defaultLevel;
     private List<ComplianceLevel> levels;
     private List<RuleDefinition> rules;
+    private List<AssessmentLevel> assessmentLevels;
 
     public String getId() {
         return id;
@@ -67,5 +70,22 @@ public class CustomCompliancePolicy {
 
     public void setRules(List<RuleDefinition> rules) {
         this.rules = rules;
+    }
+
+    public List<AssessmentLevel> getAssessmentLevels() {
+        return assessmentLevels;
+    }
+
+    public void setAssessmentLevels(List<AssessmentLevel> assessmentLevels) {
+        this.assessmentLevels = assessmentLevels;
+    }
+
+    @Nullable public AssessmentLevel getSeverityById(int id) {
+        for (AssessmentLevel assessmentLevel : assessmentLevels) {
+            if (assessmentLevel.id == id) {
+                return assessmentLevel;
+            }
+        }
+        return null;
     }
 }

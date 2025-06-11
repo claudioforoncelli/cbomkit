@@ -19,4 +19,30 @@
  */
 package com.ibm.infrastructure.compliance;
 
-public class SeverityLevel {}
+public class AssessmentLevel {
+    public int id;
+    public String label;
+
+    public AssessmentLevel(int id, String label) {
+        this.id = id;
+        this.label = label;
+    }
+
+    public int getId() {
+        return id;
+    }
+
+    public void setId(int id) {
+        this.id = id;
+    }
+
+    public String getLabel() {
+        return label;
+    }
+
+    public void setLabel(String label) {
+        this.label = label;
+    }
+
+    public static final AssessmentLevel UNKNOWN = new AssessmentLevel(0, "unknown");
+}

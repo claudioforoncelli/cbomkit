@@ -59,6 +59,12 @@ public class CustomComplianceService implements IComplianceService {
 
     @Nonnull
     @Override
+    public AssessmentLevel getDefaultSeverityLevel() {
+        return AssessmentLevel.UNKNOWN;
+    }
+
+    @Nonnull
+    @Override
     public ComplianceLevel getDefaultComplianceLevel() {
         return levelMap.getOrDefault(
                 String.valueOf(policy.getDefaultLevel()),
@@ -76,10 +82,46 @@ public class CustomComplianceService implements IComplianceService {
             @Nonnull PolicyIdentifier policyIdentifier,
             @Nonnull Collection<CryptographicAsset> assets) {
 
-        List<ICryptographicAssetPolicyResult> results =
-                assets.stream().map(this::evaluate).collect(Collectors.toList());
+        List<ICryptographicAssetPolicyResult> results = new ArrayList<>();
+        AssessmentLevel worstSeverity = getDefaultSeverityLevel();
 
-        return new ComplianceCheckResultDTO(results, false);
+        logger.info(
+                "Starting evaluation of {} assets for policy '{}'",
+                assets.size(),
+                policyIdentifier.id());
+
+        for (CryptographicAsset asset : assets) {
+            ICryptographicAssetPolicyResult result = evaluate(asset);
+            results.add(result);
+
+            ComplianceLevel level = result.complianceLevel();
+            logger.info(
+                    "Asset '{}' evaluated with compliance level '{}'",
+                    result.identifier(),
+                    level.label());
+
+            AssessmentLevel levelSeverity =
+                    policy.getAssessmentLevels().stream()
+                            .filter(s -> s.getId() == level.severityId())
+                            .findFirst()
+                            .orElse(null);
+
+            if (levelSeverity == null) {
+                logger.warn(
+                        "→ No severity level found for compliance level '{}' (severityId: {}). Using default severity '{}'",
+                        level.label(),
+                        level.severityId(),
+                        getDefaultSeverityLevel().getLabel());
+            } else {
+                logger.info("→ Mapped to severity: '{}'", levelSeverity.getLabel());
+                if (levelSeverity.getId() > worstSeverity.getId()) {
+                    worstSeverity = levelSeverity;
+                }
+            }
+        }
+
+        logger.info("Final worst severity level determined: '{}'", worstSeverity.getLabel());
+        return new ComplianceCheckResultDTO(results, false, worstSeverity);
     }
 
     @Nonnull

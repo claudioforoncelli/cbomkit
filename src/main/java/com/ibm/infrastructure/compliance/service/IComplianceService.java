@@ -1,6 +1,6 @@
 /*
  * CBOMkit
- * Copyright (C) 2024 IBM
+ * Copyright (C) 2025 IBM
  *
  * Licensed to the Apache Software Foundation (ASF) under one or more
  * contributor license agreements.  See the NOTICE file distributed with
@@ -21,6 +21,7 @@ package com.ibm.infrastructure.compliance.service;
 
 import com.ibm.domain.compliance.CryptographicAsset;
 import com.ibm.domain.compliance.PolicyIdentifier;
+import com.ibm.infrastructure.compliance.AssessmentLevel;
 import com.ibm.infrastructure.compliance.ComplianceLevel;
 import jakarta.annotation.Nonnull;
 import java.util.Collection;
@@ -36,6 +37,9 @@ public interface IComplianceService {
 
     @Nonnull
     ComplianceLevel getDefaultComplianceLevel();
+
+    @Nonnull
+    AssessmentLevel getDefaultSeverityLevel();
 
     @Nonnull
     ComplianceCheckResultDTO evaluate(

@@ -19,6 +19,7 @@
  */
 package com.ibm.infrastructure.compliance.service.custom;
 
+import com.ibm.infrastructure.compliance.AssessmentLevel;
 import com.ibm.infrastructure.compliance.ComplianceLevel;
 import com.ibm.infrastructure.compliance.ComplianceLevel.ComplianceIcon;
 import java.util.*;
@@ -34,29 +35,49 @@ public class CustomPolicyParser {
     private static final Logger logger = LoggerFactory.getLogger(CustomPolicyParser.class);
 
     public static CustomCompliancePolicy parse(String tomlString) {
-        logger.debug("Parsing TOML policy...");
+        logger.info("Parsing TOML policy...");
         TomlParseResult toml = Toml.parse(tomlString);
-
-        // Fail fast if "levels" is missing
-        if (!toml.contains("levels")) {
-            throw new IllegalArgumentException("Missing required top-level array: levels");
-        }
 
         CustomCompliancePolicy policy = new CustomCompliancePolicy();
         policy.setId(requireString(toml, "id"));
         policy.setName(requireString(toml, "name"));
-        policy.setDefaultLevel(Math.toIntExact(requireLong(toml, "default_level")));
+        policy.setDefaultLevel(Math.toIntExact(requireLong(toml, "default_assessment_level")));
 
-        logger.debug(
+        logger.info(
                 "Policy ID: {}, Name: {}, Default Level: {}",
                 policy.getId(),
                 policy.getName(),
                 policy.getDefaultLevel());
 
-        // Parse compliance levels
+        List<AssessmentLevel> assessmentLevels = new ArrayList<>();
+        TomlArray assessmentLevelsArray = requireArray(toml, "assessment_levels");
+        logger.info("Parsing {} assessment levels...", assessmentLevelsArray.size());
+
+        for (int i = 0; i < assessmentLevelsArray.size(); i++) {
+            Object entry = assessmentLevelsArray.get(i);
+            if (!(entry instanceof TomlTable level)) {
+                logger.warn("Skipping entry at index {} because it's not a TomlTable", i);
+                continue;
+            }
+
+            logger.debug("  Assessment level table keys: {}", level.keySet());
+
+            int id = requireInt(level, "id");
+            String label = requireString(level, "label");
+
+            logger.debug("  Raw values -> id: {}, label: {}", id, label);
+
+            AssessmentLevel assessmentLevel = new AssessmentLevel(id, label);
+            assessmentLevels.add(assessmentLevel);
+
+            logger.info("Parsed assessment level: {} (ID {})", label, id);
+        }
+
+        policy.setAssessmentLevels(assessmentLevels);
+
         List<ComplianceLevel> levels = new ArrayList<>();
-        TomlArray levelsArray = requireArray(toml, "levels");
-        logger.debug("Parsing {} levels...", levelsArray.size());
+        TomlArray levelsArray = requireArray(toml, "compliance_levels");
+        logger.info("Parsing {} compliance levels...", levelsArray.size());
 
         for (int i = 0; i < levelsArray.size(); i++) {
             TomlTable level = levelsArray.getTable(i);
@@ -67,25 +88,30 @@ public class CustomPolicyParser {
                             requireString(level, "description"),
                             requireString(level, "color"),
                             parseEnum(level, "icon", ComplianceIcon.class),
-                            requireBoolean(level, "is_uncompliant"));
+                            requireInt(level, "assessment_level"));
             levels.add(complianceLevel);
-            logger.debug("Parsed level: {} (ID {})", complianceLevel.label(), complianceLevel.id());
+            logger.info(
+                    "Parsed compliance level: {} (ID {})",
+                    complianceLevel.label(),
+                    complianceLevel.id());
         }
         policy.setLevels(levels);
 
-        // Parse rules
         List<RuleDefinition> rules = new ArrayList<>();
         TomlArray rulesArray = requireArray(toml, "rule");
-        logger.debug("Parsing {} rules...", rulesArray.size());
+        logger.info("Parsing {} rules...", rulesArray.size());
 
         for (int i = 0; i < rulesArray.size(); i++) {
             TomlTable table = rulesArray.getTable(i);
             RuleDefinition rule = new RuleDefinition();
             rule.setName(table.getString("name"));
             rule.setDescription(requireString(table, "description"));
-            rule.setLevelId(requireInt(table, "level"));
-            logger.debug(
-                    "Rule {}: Level {}, Desc: {}", i + 1, rule.getLevelId(), rule.getDescription());
+            rule.setLevelId(requireInt(table, "compliance_level"));
+            logger.info(
+                    "Rule {}: Compliance Level {}, Desc: {}",
+                    i + 1,
+                    rule.getLevelId(),
+                    rule.getDescription());
 
             CryptoProperties props = new CryptoProperties();
             props.setOid(table.getString("oid"));
@@ -185,7 +211,7 @@ public class CustomPolicyParser {
         }
 
         policy.setRules(rules);
-        logger.debug("Parsing complete.");
+        logger.info("Parsing complete.");
         return policy;
     }
 

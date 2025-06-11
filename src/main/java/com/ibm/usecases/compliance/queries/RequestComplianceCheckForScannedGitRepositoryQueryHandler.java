@@ -1,6 +1,6 @@
 /*
  * CBOMkit
- * Copyright (C) 2024 IBM
+ * Copyright (C) 2025 IBM
  *
  * Licensed to the Apache Software Foundation (ASF) under one or more
  * contributor license agreements.  See the NOTICE file distributed with
@@ -42,6 +42,7 @@ import java.util.Optional;
 @Singleton
 public final class RequestComplianceCheckForScannedGitRepositoryQueryHandler
         extends QueryHandler<RequestComplianceCheckForScannedGitRepositoryQuery, ComplianceResult> {
+
     @Nonnull private final ICBOMReadRepository readRepository;
     @Nonnull private final IComplianceService complianceService;
 
@@ -60,30 +61,25 @@ public final class RequestComplianceCheckForScannedGitRepositoryQueryHandler
 
     @Override
     public @Nonnull ComplianceResult handle(
-            @Nonnull
-                    RequestComplianceCheckForScannedGitRepositoryQuery
-                            requestComplianceCheckForScannedGitRepositoryQuery)
-            throws Exception {
+            @Nonnull RequestComplianceCheckForScannedGitRepositoryQuery request) throws Exception {
+
         final CompliancePreparationService compliancePreparationService =
                 new CompliancePreparationService();
         final Collection<CryptographicAsset> cryptographicAssets =
                 compliancePreparationService.receiveCryptographicAssets(
                         this.readRepository,
-                        new GitUrl(requestComplianceCheckForScannedGitRepositoryQuery.gitUrl()),
-                        Optional.ofNullable(
-                                        requestComplianceCheckForScannedGitRepositoryQuery.commit())
-                                .map(Commit::new)
-                                .orElse(null));
+                        new GitUrl(request.gitUrl()),
+                        Optional.ofNullable(request.commit()).map(Commit::new).orElse(null));
 
-        final PolicyIdentifier policyIdentifier =
-                new PolicyIdentifier(
-                        requestComplianceCheckForScannedGitRepositoryQuery.policyIdentifier());
+        final PolicyIdentifier policyIdentifier = new PolicyIdentifier(request.policyIdentifier());
+
         final ComplianceCheckResultDTO complianceCheckResultDTO =
                 this.complianceService.evaluate(policyIdentifier, cryptographicAssets);
 
         if (complianceCheckResultDTO.error()) {
             return ComplianceResult.error(this.complianceService.getName());
         }
+
         return new ComplianceResult(
                 this.complianceService.getName(),
                 policyIdentifier.id(),
@@ -96,9 +92,8 @@ public final class RequestComplianceCheckForScannedGitRepositoryQueryHandler
                                                 result.message()))
                         .toList(),
                 this.complianceService.getComplianceLevels(),
-                this.complianceService.getDefaultComplianceLevel().id(),
-                complianceCheckResultDTO.policyResults().stream()
-                        .noneMatch(result -> result.complianceLevel().isUnCompliant()),
+                this.complianceService.getDefaultSeverityLevel(),
+                complianceCheckResultDTO.assessmentLevel(),
                 false);
     }
 }

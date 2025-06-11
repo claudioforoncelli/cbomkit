@@ -19,7 +19,6 @@
  */
 package com.ibm.infrastructure.compliance;
 
-import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -31,7 +30,7 @@ public record ComplianceLevel(
         @Nullable String description,
         @Nonnull String colorHex,
         @Nonnull ComplianceIcon icon,
-        @JsonIgnore boolean isUnCompliant) {
+        int severityId) {
 
     public enum ComplianceIcon {
         CHECKMARK,

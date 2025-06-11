@@ -23,9 +23,7 @@ import app.bootstrap.core.cqrs.IQueryBus;
 import app.bootstrap.core.cqrs.QueryHandler;
 import com.ibm.domain.compliance.CryptographicAsset;
 import com.ibm.domain.compliance.PolicyIdentifier;
-import com.ibm.infrastructure.compliance.ComplianceFinding;
-import com.ibm.infrastructure.compliance.ComplianceResult;
-import com.ibm.infrastructure.compliance.ComplianceServiceSelector;
+import com.ibm.infrastructure.compliance.*;
 import com.ibm.infrastructure.compliance.service.ComplianceCheckResultDTO;
 import com.ibm.infrastructure.compliance.service.IComplianceService;
 import com.ibm.usecases.compliance.service.CompliancePreparationService;
@@ -86,9 +84,8 @@ public final class RequestComplianceCheckForCBOMQueryHandler
                                                 result.message()))
                         .toList(),
                 selectedComplianceService.getComplianceLevels(),
-                selectedComplianceService.getDefaultComplianceLevel().id(),
-                complianceCheckResultDTO.policyResults().stream()
-                        .noneMatch(result -> result.complianceLevel().isUnCompliant()),
+                selectedComplianceService.getDefaultSeverityLevel(),
+                complianceCheckResultDTO.assessmentLevel(), // <- new severity result added
                 false);
     }
 }

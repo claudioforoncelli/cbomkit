@@ -19,8 +19,11 @@
  */
 package com.ibm.infrastructure.compliance.service;
 
+import com.ibm.infrastructure.compliance.AssessmentLevel;
 import jakarta.annotation.Nonnull;
 import java.util.Collection;
 
 public record ComplianceCheckResultDTO(
-        @Nonnull Collection<ICryptographicAssetPolicyResult> policyResults, boolean error) {}
+        @Nonnull Collection<ICryptographicAssetPolicyResult> policyResults,
+        boolean error,
+        AssessmentLevel assessmentLevel) {}

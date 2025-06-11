@@ -31,13 +31,19 @@ public record ComplianceResult(
         @Nullable String policyName,
         @JsonProperty("findings") @Nonnull List<ComplianceFinding> complianceFindings,
         @Nonnull List<ComplianceLevel> complianceLevels,
-        int defaultComplianceLevel,
-        boolean globalComplianceStatus,
+        AssessmentLevel defaultAssessmentLevel,
+        AssessmentLevel severityStatus,
         boolean error) {
 
     @Nonnull
     public static ComplianceResult error(@Nonnull String complianceServiceName) {
         return new ComplianceResult(
-                complianceServiceName, null, List.of(), List.of(), 0, false, true);
+                complianceServiceName,
+                null,
+                List.of(),
+                List.of(),
+                AssessmentLevel.UNKNOWN,
+                AssessmentLevel.UNKNOWN,
+                true);
     }
 }
