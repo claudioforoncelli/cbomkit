@@ -76,14 +76,14 @@ public final class RequestComplianceCheckForScannedGitRepositoryQueryHandler
         final ComplianceCheckResultDTO complianceCheckResultDTO =
                 this.complianceService.evaluate(policyIdentifier, cryptographicAssets);
 
-        if (complianceCheckResultDTO.error()) {
+        if (complianceCheckResultDTO.isError()) {
             return ComplianceResult.error(this.complianceService.getName());
         }
 
         return new ComplianceResult(
                 this.complianceService.getName(),
                 policyIdentifier.id(),
-                complianceCheckResultDTO.policyResults().stream()
+                complianceCheckResultDTO.getPolicyResults().stream()
                         .map(
                                 result ->
                                         new ComplianceFinding(
@@ -92,8 +92,9 @@ public final class RequestComplianceCheckForScannedGitRepositoryQueryHandler
                                                 result.message()))
                         .toList(),
                 this.complianceService.getComplianceLevels(),
-                this.complianceService.getDefaultSeverityLevel(),
-                complianceCheckResultDTO.assessmentLevel(),
+                this.complianceService.getDefaultComplianceLevel().id(),
+                this.complianceService.getDefaultAssessmentLevel(),
+                complianceCheckResultDTO.getAssessmentLevel(),
                 false);
     }
 }

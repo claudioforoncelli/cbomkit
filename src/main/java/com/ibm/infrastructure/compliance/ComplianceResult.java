@@ -31,8 +31,9 @@ public record ComplianceResult(
         @Nullable String policyName,
         @JsonProperty("findings") @Nonnull List<ComplianceFinding> complianceFindings,
         @Nonnull List<ComplianceLevel> complianceLevels,
+        int defaultComplianceLevel,
         AssessmentLevel defaultAssessmentLevel,
-        AssessmentLevel severityStatus,
+        AssessmentLevel assessmentLevel,
         boolean error) {
 
     @Nonnull
@@ -42,6 +43,7 @@ public record ComplianceResult(
                 null,
                 List.of(),
                 List.of(),
+                0,
                 AssessmentLevel.UNKNOWN,
                 AssessmentLevel.UNKNOWN,
                 true);

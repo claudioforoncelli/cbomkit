@@ -39,7 +39,7 @@ public interface IComplianceService {
     ComplianceLevel getDefaultComplianceLevel();
 
     @Nonnull
-    AssessmentLevel getDefaultSeverityLevel();
+    AssessmentLevel getDefaultAssessmentLevel();
 
     @Nonnull
     ComplianceCheckResultDTO evaluate(

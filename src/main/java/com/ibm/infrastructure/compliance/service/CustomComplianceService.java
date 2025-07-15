@@ -59,7 +59,7 @@ public class CustomComplianceService implements IComplianceService {
 
     @Nonnull
     @Override
-    public AssessmentLevel getDefaultSeverityLevel() {
+    public AssessmentLevel getDefaultAssessmentLevel() {
         return AssessmentLevel.UNKNOWN;
     }
 
@@ -83,7 +83,7 @@ public class CustomComplianceService implements IComplianceService {
             @Nonnull Collection<CryptographicAsset> assets) {
 
         List<ICryptographicAssetPolicyResult> results = new ArrayList<>();
-        AssessmentLevel worstSeverity = getDefaultSeverityLevel();
+        AssessmentLevel worstAssessment = getDefaultAssessmentLevel();
 
         logger.info(
                 "Starting evaluation of {} assets for policy '{}'",
@@ -100,35 +100,38 @@ public class CustomComplianceService implements IComplianceService {
                     result.identifier(),
                     level.label());
 
-            AssessmentLevel levelSeverity =
+            AssessmentLevel assessmentLevel =
                     policy.getAssessmentLevels().stream()
-                            .filter(s -> s.getId() == level.severityId())
+                            .filter(s -> s.getId() == level.assessmentId())
                             .findFirst()
                             .orElse(null);
 
-            if (levelSeverity == null) {
+            if (assessmentLevel == null) {
                 logger.warn(
-                        "→ No severity level found for compliance level '{}' (severityId: {}). Using default severity '{}'",
+                        "→ No severity level found for compliance level '{}' (assessmentId: {}). Using default severity '{}'",
                         level.label(),
-                        level.severityId(),
-                        getDefaultSeverityLevel().getLabel());
+                        level.assessmentId(),
+                        getDefaultAssessmentLevel().getLabel());
             } else {
-                logger.info("→ Mapped to severity: '{}'", levelSeverity.getLabel());
-                if (levelSeverity.getId() > worstSeverity.getId()) {
-                    worstSeverity = levelSeverity;
+                logger.info("→ Mapped to severity: '{}'", assessmentLevel.getLabel());
+                if (assessmentLevel.getId() > worstAssessment.getId()) {
+                    worstAssessment = assessmentLevel;
                 }
             }
         }
 
-        logger.info("Final worst severity level determined: '{}'", worstSeverity.getLabel());
-        return new ComplianceCheckResultDTO(results, false, worstSeverity);
+        logger.info("Final worst severity level determined: '{}'", worstAssessment.getLabel());
+        return new ComplianceCheckResultDTO(results, false, worstAssessment);
     }
 
     @Nonnull
     private ICryptographicAssetPolicyResult evaluate(@Nonnull CryptographicAsset asset) {
         var props = asset.component().getCryptoProperties();
-        ComplianceLevel worstLevel = getDefaultComplianceLevel();
+
+        int highestSpecificity = -1;
+        ComplianceLevel bestLevel = getDefaultComplianceLevel();
         StringBuilder combinedDescription = new StringBuilder();
+        String bestDescription = null;
 
         List<RuleDefinition> rules = policy.getRules();
         for (RuleDefinition rule : rules) {
@@ -178,27 +181,33 @@ public class CustomComplianceService implements IComplianceService {
 
             if (matched) {
                 logger.debug("Rule matched.");
-                worstLevel =
-                        updateWorstLevel(
-                                worstLevel,
-                                rule.getLevelId(),
-                                rule.getDescription(),
-                                combinedDescription);
+
+                int specificity = computeSpecificity(rule);
+                ComplianceLevel level =
+                        levelMap.getOrDefault(
+                                String.valueOf(rule.getLevelId()), getDefaultComplianceLevel());
+
+                if (specificity > highestSpecificity
+                        || (specificity == highestSpecificity && level.id() > bestLevel.id())) {
+                    highestSpecificity = specificity;
+                    bestLevel = level;
+                    bestDescription = rule.getDescription();
+                }
             } else {
                 logger.debug("Rule did not match.");
             }
         }
 
-        if (combinedDescription.isEmpty()) {
+        if (bestDescription != null) {
+            combinedDescription.append("- ").append(bestDescription);
+        } else {
             combinedDescription
                     .append("No compliance rules matched for asset type: ")
                     .append(props.getAssetType());
         }
 
         return new BasicCryptographicAssetPolicyResult(
-                asset.identifier().toLowerCase(),
-                worstLevel,
-                combinedDescription.toString().trim());
+                asset.identifier().toLowerCase(), bestLevel, combinedDescription.toString().trim());
     }
 
     private boolean matchAlgorithm(AlgorithmProperties actual, AlgorithmProperties rule) {
@@ -350,5 +359,69 @@ public class CustomComplianceService implements IComplianceService {
             return ruleNum.intValue() == actualNum.intValue();
         }
         return ruleValue.toString().trim().equalsIgnoreCase(actualValue.toString().trim());
+    }
+
+    private int computeSpecificity(@Nonnull RuleDefinition rule) {
+        int specificity = 0;
+
+        if (rule.getName() != null && !rule.getName().isEmpty()) specificity++;
+
+        CryptoProperties props = rule.getCryptoProperties();
+        if (props != null) {
+            if (props.getAssetType() != null) specificity++;
+
+            AlgorithmProperties algo = props.getAlgorithmProperties();
+            if (algo != null) {
+                if (algo.getPrimitive() != null) specificity++;
+                if (algo.getCryptoFunctions() != null && !algo.getCryptoFunctions().isEmpty())
+                    specificity++;
+                if (algo.getCurve() != null) specificity++;
+                if (algo.getMode() != null) specificity++;
+                if (algo.getPadding() != null) specificity++;
+                if (algo.getNistQuantumSecurityLevel() != null) specificity++;
+                if (algo.getParameterSetIdentifier() != null) specificity++;
+                if (algo.getExecutionEnvironment() != null) specificity++;
+                if (algo.getImplementationPlatform() != null) specificity++;
+                if (algo.getCertificationLevel() != null) specificity++;
+                if (algo.getClassicalSecurityLevel() != null) specificity++;
+            }
+
+            CertificateProperties cert = props.getCertificateProperties();
+            if (cert != null) {
+                if (cert.getSubjectName() != null) specificity++;
+                if (cert.getIssuerName() != null) specificity++;
+                if (cert.getNotValidBefore() != null) specificity++;
+                if (cert.getNotValidAfter() != null) specificity++;
+                if (cert.getSignatureAlgorithmRef() != null) specificity++;
+                if (cert.getSubjectPublicKeyRef() != null) specificity++;
+                if (cert.getCertificateFormat() != null) specificity++;
+                if (cert.getCertificateExtension() != null) specificity++;
+            }
+
+            ProtocolProperties proto = props.getProtocolProperties();
+            if (proto != null) {
+                if (proto.getType() != null) specificity++;
+                if (proto.getVersion() != null) specificity++;
+                if (proto.getCipherSuites() != null && !proto.getCipherSuites().isEmpty())
+                    specificity++;
+            }
+
+            RelatedCryptoMaterialProperties mat = props.getRelatedCryptoMaterialProperties();
+            if (mat != null) {
+                if (mat.getType() != null) specificity++;
+                if (mat.getId() != null) specificity++;
+                if (mat.getState() != null) specificity++;
+                if (mat.getAlgorithmRef() != null) specificity++;
+                if (mat.getCreationDate() != null) specificity++;
+                if (mat.getActivationDate() != null) specificity++;
+                if (mat.getUpdateDate() != null) specificity++;
+                if (mat.getExpirationDate() != null) specificity++;
+                if (mat.getValue() != null) specificity++;
+                if (mat.getSize() != null) specificity++;
+                if (mat.getFormat() != null) specificity++;
+            }
+        }
+
+        return specificity;
     }
 }

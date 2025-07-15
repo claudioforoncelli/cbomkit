@@ -68,14 +68,14 @@ public final class RequestComplianceCheckForCBOMQueryHandler
         final ComplianceCheckResultDTO complianceCheckResultDTO =
                 selectedComplianceService.evaluate(policyIdentifier, cryptographicAssets);
 
-        if (complianceCheckResultDTO.error()) {
+        if (complianceCheckResultDTO.isError()) {
             return ComplianceResult.error(selectedComplianceService.getName());
         }
 
         return new ComplianceResult(
                 selectedComplianceService.getName(),
                 policyIdentifier.id(),
-                complianceCheckResultDTO.policyResults().stream()
+                complianceCheckResultDTO.getPolicyResults().stream()
                         .map(
                                 result ->
                                         new ComplianceFinding(
@@ -84,8 +84,9 @@ public final class RequestComplianceCheckForCBOMQueryHandler
                                                 result.message()))
                         .toList(),
                 selectedComplianceService.getComplianceLevels(),
-                selectedComplianceService.getDefaultSeverityLevel(),
-                complianceCheckResultDTO.assessmentLevel(), // <- new severity result added
+                selectedComplianceService.getDefaultComplianceLevel().id(),
+                selectedComplianceService.getDefaultAssessmentLevel(),
+                complianceCheckResultDTO.getAssessmentLevel(),
                 false);
     }
 }

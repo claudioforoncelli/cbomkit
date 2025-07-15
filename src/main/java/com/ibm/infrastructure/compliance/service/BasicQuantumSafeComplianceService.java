@@ -1,6 +1,6 @@
 /*
  * CBOMkit
- * Copyright (C) 2025 IBM
+ * Copyright (C) 2024 IBM
  *
  * Licensed to the Apache Software Foundation (ASF) under one or more
  * contributor license agreements.  See the NOTICE file distributed with
@@ -21,9 +21,15 @@ package com.ibm.infrastructure.compliance.service;
 
 import com.ibm.domain.compliance.CryptographicAsset;
 import com.ibm.domain.compliance.PolicyIdentifier;
-import com.ibm.infrastructure.compliance.*;
+import com.ibm.infrastructure.compliance.AssessmentLevel;
+import com.ibm.infrastructure.compliance.ComplianceLevel;
 import jakarta.annotation.Nonnull;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collection;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 import org.cyclonedx.model.component.crypto.AlgorithmProperties;
 import org.cyclonedx.model.component.crypto.CryptoProperties;
 import org.cyclonedx.model.component.crypto.enums.Primitive;
@@ -72,12 +78,14 @@ public class BasicQuantumSafeComplianceService implements IComplianceService {
                     "1.3.6.1.4.1.22554.5.6.2",
                     "1.3.6.1.4.1.22554.5.6.3");
 
-    private static final AssessmentLevel COMPLIANT = new AssessmentLevel(1, "Compliant");
-    private static final AssessmentLevel UNCOMPLIANT = new AssessmentLevel(2, "Not Compliant");
-
     @Nonnull private final Map<Integer, ComplianceLevel> complianceLevels;
+    @Nonnull private final Map<Integer, AssessmentLevel> assessmentLevels;
 
     public BasicQuantumSafeComplianceService() {
+        assessmentLevels = new HashMap<>();
+        assessmentLevels.put(1, new AssessmentLevel(1, "Compliant"));
+        assessmentLevels.put(2, new AssessmentLevel(2, "Not compliant"));
+
         complianceLevels = new HashMap<>();
         complianceLevels.put(
                 1,
@@ -117,130 +125,148 @@ public class BasicQuantumSafeComplianceService implements IComplianceService {
                         1));
     }
 
-    @Nonnull
     @Override
-    public String getName() {
+    public @Nonnull String getName() {
         return "Basic Backend Compliance Service";
     }
 
-    @Nonnull
     @Override
-    public List<ComplianceLevel> getComplianceLevels() {
+    public @Nonnull List<ComplianceLevel> getComplianceLevels() {
         return new ArrayList<>(complianceLevels.values());
     }
 
-    @Nonnull
     @Override
-    public ComplianceLevel getDefaultComplianceLevel() {
-        return complianceLevels.get(2); // "Unknown"
+    public @Nonnull ComplianceLevel getDefaultComplianceLevel() {
+        return this.complianceLevels.get(2);
     }
 
     @Nonnull
     @Override
-    public AssessmentLevel getDefaultSeverityLevel() {
-        return UNCOMPLIANT;
+    public AssessmentLevel getDefaultAssessmentLevel() {
+        return this.assessmentLevels.get(2);
     }
 
-    @Nonnull
     @Override
-    public ComplianceCheckResultDTO evaluate(
+    public @Nonnull ComplianceCheckResultDTO evaluate(
             @Nonnull PolicyIdentifier policyIdentifier,
             @Nonnull Collection<CryptographicAsset> cryptographicAssets) {
 
-        if (!policyIdentifier.id().equals("quantum_safe")) {
-            return new ComplianceCheckResultDTO(List.of(), true, UNCOMPLIANT);
-        }
-
         List<ICryptographicAssetPolicyResult> results = new ArrayList<>();
-        AssessmentLevel worstSeverity = null;
+        AssessmentLevel worstAssessment = assessmentLevels.get(2);
+
+        System.out.println(
+                "Starting evaluation of "
+                        + cryptographicAssets.size()
+                        + " assets for quantum-safe policy");
 
         for (CryptographicAsset asset : cryptographicAssets) {
             ICryptographicAssetPolicyResult result = evaluate(asset);
             results.add(result);
 
             ComplianceLevel level = result.complianceLevel();
-            AssessmentLevel severity =
-                    switch (level.label().toLowerCase()) {
-                        case "not quantum safe", "unknown" -> UNCOMPLIANT;
-                        default -> COMPLIANT;
-                    };
+            System.out.println(
+                    "Asset '"
+                            + result.identifier()
+                            + "' evaluated with compliance level '"
+                            + level.label()
+                            + "'");
 
-            if (worstSeverity == null || severity.getId() > worstSeverity.getId()) {
-                worstSeverity = severity;
+            AssessmentLevel assessmentLevel = assessmentLevels.get(level.assessmentId());
+
+            if (assessmentLevel == null) {
+                System.out.println(
+                        "→ No severity level found for compliance level '"
+                                + level.label()
+                                + "' (assessmentId: "
+                                + level.assessmentId()
+                                + "). Using default severity '"
+                                + getDefaultAssessmentLevel().getLabel()
+                                + "'");
+            } else {
+                System.out.println("→ Mapped to severity: '" + assessmentLevel.getLabel() + "'");
+                if (worstAssessment == null || assessmentLevel.getId() > worstAssessment.getId()) {
+                    worstAssessment = assessmentLevel;
+                }
             }
         }
 
-        return new ComplianceCheckResultDTO(
-                results, false, worstSeverity != null ? worstSeverity : UNCOMPLIANT);
+        if (worstAssessment != null) {
+            System.out.println(
+                    "Final worst severity level determined: '" + worstAssessment.getLabel() + "'");
+        } else {
+            System.out.println("No severity levels were found. Defaulting to null.");
+        }
+
+        return new ComplianceCheckResultDTO(results, false, worstAssessment);
     }
 
+    @SuppressWarnings("java:S3776")
     @Nonnull
-    private ICryptographicAssetPolicyResult evaluate(@Nonnull CryptographicAsset asset) {
-        CryptoProperties cryptoProperties = asset.component().getCryptoProperties();
-        AlgorithmProperties algoProps = cryptoProperties.getAlgorithmProperties();
-
-        if (algoProps == null) {
+    private ICryptographicAssetPolicyResult evaluate(
+            @Nonnull CryptographicAsset cryptographicAsset) {
+        final CryptoProperties cryptoProperties =
+                cryptographicAsset.component().getCryptoProperties();
+        final AlgorithmProperties algorithmProperties = cryptoProperties.getAlgorithmProperties();
+        if (algorithmProperties == null) {
             return new BasicCryptographicAssetPolicyResult(
-                    asset.identifier(),
-                    complianceLevels.get(2),
+                    cryptographicAsset.identifier(),
+                    this.complianceLevels.get(2),
                     "The field 'algorithmProperties' was not set, which does not allow further categorization");
         }
 
-        Integer level = algoProps.getNistQuantumSecurityLevel();
-        if (level != null && level > 0) {
+        final Integer nistQuantumSecurityLevel = algorithmProperties.getNistQuantumSecurityLevel();
+        if (nistQuantumSecurityLevel != null && nistQuantumSecurityLevel > 0) {
             return new BasicCryptographicAssetPolicyResult(
-                    asset.identifier(),
-                    complianceLevels.get(3),
+                    cryptographicAsset.identifier(),
+                    this.complianceLevels.get(3),
                     "The field 'nistQuantumSecurityLevel' was set with a strictly positive value in the CBOM");
         }
 
-        Primitive primitive = algoProps.getPrimitive();
-        if (primitive == null) {
+        final Primitive primitive = algorithmProperties.getPrimitive();
+        if (algorithmProperties.getPrimitive() == null) {
             return new BasicCryptographicAssetPolicyResult(
-                    asset.identifier(),
-                    complianceLevels.get(2),
+                    cryptographicAsset.identifier(),
+                    this.complianceLevels.get(2),
                     "The asset primitive was not set, which does not allow further categorization");
         } else if (ASYMMETRIC_PRIMITIVES.contains(primitive)
                 || UNKNOWN_PRIMITIVES.contains(primitive)) {
-            String name = asset.component().getName();
-            String oid = cryptoProperties.getOid();
-
+            final String name = cryptographicAsset.component().getName();
+            final String oid = cryptoProperties.getOid();
             if (oid != null && WHITELIST_OIDS.contains(oid)) {
                 return new BasicCryptographicAssetPolicyResult(
-                        asset.identifier(),
-                        complianceLevels.get(3),
+                        cryptographicAsset.identifier(),
+                        this.complianceLevels.get(3),
                         "The OID of the asset is part of the Quantum Safe OIDs whitelist");
             }
-
             if (name != null) {
                 String lowerCaseName = name.toLowerCase();
-                for (String w : WHITELIST_NAMES) {
-                    if (lowerCaseName.contains(w)) {
+                for (String whitelistItem : WHITELIST_NAMES) {
+                    if (lowerCaseName.contains(whitelistItem)) {
                         return new BasicCryptographicAssetPolicyResult(
-                                asset.identifier(),
-                                complianceLevels.get(3),
+                                cryptographicAsset.identifier(),
+                                this.complianceLevels.get(3),
                                 "The name of the asset contains '"
-                                        + w
+                                        + whitelistItem
                                         + "', which is part of the Quantum Safe whitelist of component names");
                     }
                 }
             }
-
             if (ASYMMETRIC_PRIMITIVES.contains(primitive)) {
                 return new BasicCryptographicAssetPolicyResult(
-                        asset.identifier(),
-                        complianceLevels.get(1),
+                        cryptographicAsset.identifier(),
+                        this.complianceLevels.get(1),
                         "The asset has an asymmetric primitive and does not match with the Quantum Safe whitelists of OIDs and names");
             } else {
+                // Primitive is part of UNKNOWN_PRIMITIVES
                 return new BasicCryptographicAssetPolicyResult(
-                        asset.identifier(),
-                        complianceLevels.get(2),
+                        cryptographicAsset.identifier(),
+                        this.complianceLevels.get(2),
                         "The asset primitive is unclear and does not allow further categorization");
             }
         } else {
             return new BasicCryptographicAssetPolicyResult(
-                    asset.identifier(),
-                    complianceLevels.get(4),
+                    cryptographicAsset.identifier(),
+                    this.complianceLevels.get(4),
                     "The asset has a symmetric primitive, so the Quantum Safe categorization is not applicable");
         }
     }

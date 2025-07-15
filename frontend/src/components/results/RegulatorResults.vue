@@ -69,7 +69,7 @@ export default {
     title() {
       if (this.isLoadingCompliance) return "Analyzing compliance...";
       if (hasValidComplianceResults()) {
-        const label = this.complianceResult?.severityStatus?.label;
+        const label = this.complianceResult?.assessmentLevel?.label;
         return label ? label.toUpperCase() : "UNKNOWN";
       }
       return "COMPLIANCE RESULTS UNAVAILABLE –";
@@ -79,13 +79,13 @@ export default {
       const service = getComplianceServiceName();
       let sourceString = "";
       if (service !== "") {
-        sourceString = `<br/><span style="font-size: x-small;">Source: ${service}</span>`;
+        sourceString = `<br/><span style="font-size: x-small;">Source: ${policy}</span>`;
       }
 
       if (this.isLoadingCompliance) return "";
 
       if (hasValidComplianceResults()) {
-        const label = this.complianceResult?.severityStatus?.label?.toUpperCase();
+        const label = this.complianceResult?.assessmentLevel?.label?.toUpperCase();
         return `CBOM compliance result with respect to policy ${policy}: ${label}.` + sourceString;
       }
 
@@ -94,7 +94,7 @@ export default {
     backgroundColor() {
       if (model.useDarkMode && !this.isLoadingCompliance) {
         if (!hasValidComplianceResults()) return "#2f4c78";
-        return "#393939"; // Single color used for all severity levels for now
+        return "#393939";
       }
       return "";
     },
@@ -104,7 +104,7 @@ export default {
     kind() {
       if (!hasValidComplianceResults()) return "info";
 
-      const label = this.complianceResult?.severityStatus?.label?.toLowerCase();
+      const label = this.complianceResult?.assessmentLevel?.label?.toLowerCase();
       if (label === "compliant") return "success";
       if (label === "not compliant") return "warning";
       if (label === "potentially compliant") return "warning";
@@ -112,15 +112,27 @@ export default {
     },
   },
   beforeMount() {
-    if (model.cbom != null) {
+    if (model.cbom && model.selectedPolicyIdentifier) {
       getComplianceReport(model.cbom, model.selectedPolicyIdentifier);
     }
   },
   watch: {
-    "model.cbom": function (newResult) {
-      if (newResult != null) {
-        getComplianceReport(model.cbom, model.selectedPolicyIdentifier);
+    "model.cbom": function (newCbom) {
+      if (newCbom && model.selectedPolicyIdentifier) {
+        getComplianceReport(newCbom, model.selectedPolicyIdentifier);
       }
+    },
+    "model.selectedPolicyIdentifier": function (newPolicy) {
+      if (newPolicy && model.cbom) {
+        getComplianceReport(model.cbom, newPolicy);
+      }
+    },
+    "model.policyCheckResult": {
+      handler(newVal) {
+        console.log("Updated policyCheckResult:", newVal);
+      },
+      deep: true,
+      immediate: true,
     },
   },
 };

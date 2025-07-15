@@ -5,9 +5,10 @@ export function getLocalComplianceServiceName() {
 export function createLocalComplianceReport(cbom) {
     const COMPLIANCE_SERVICE_NAME = getLocalComplianceServiceName();
     const POLICY_NAME = "NIST Post-Quantum Cryptography";
+
     const ASYMMETRIC_PRIMITIVES = ["signature", "key-agree", "kem", "pke"];
     const UNKNOWN_PRIMITIVES = ["unknown", "other"];
-    const WHITELIST_NAMES = ["ml-kem", "ml-dsa", "slh-dsa", "pqxdh", "bike", "mceliece", "frodokem","hqc", "kyber", "ntru", "crystals", "falcon", "mayo", "sphincs", "xmss", "lms"];
+    const WHITELIST_NAMES = ["ml-kem", "ml-dsa", "slh-dsa", "pqxdh", "bike", "mceliece", "frodokem", "hqc", "kyber", "ntru", "crystals", "falcon", "mayo", "sphincs", "xmss", "lms"];
     const WHITELIST_OIDS = [
         "1.3.6.1.4.1.2.267.12.4.4", "1.3.6.1.4.1.2.267.12.6.5", "1.3.6.1.4.1.2.267.12.8.7", "1.3.9999.6.4.16",
         "1.3.9999.6.7.16", "1.3.9999.6.4.13", "1.3.9999.6.7.13", "1.3.9999.6.5.12", "1.3.9999.6.8.12",
@@ -21,6 +22,13 @@ export function createLocalComplianceReport(cbom) {
         { id: 3, label: "Quantum Safe", colorHex: "green", icon: "CHECKMARK_SECURE" },
         { id: 4, label: "Not Applicable", description: "Not Applicable: we only categorize asymmetric algorithms", colorHex: "gray", icon: "NOT_APPLICABLE" }
     ];
+
+    const assessmentLevels = [
+        { id: 1, label: "compliant" },
+        { id: 2, label: "not compliant" }
+    ];
+
+    const defaultAssessmentLevel = { id: 0, label: "unknown" };
 
     try {
         const findings = [];
@@ -38,8 +46,8 @@ export function createLocalComplianceReport(cbom) {
             }
 
             let unknownFindingMessage = null;
-
             const cryptoProperties = component.cryptoProperties;
+
             if (cryptoProperties) {
                 const algorithmProperties = cryptoProperties.algorithmProperties;
                 if (algorithmProperties) {
@@ -68,7 +76,7 @@ export function createLocalComplianceReport(cbom) {
                             }
                             if (name) {
                                 const lowerCaseName = name.toLowerCase();
-                                const matchedWhitelistItem = WHITELIST_NAMES.find(whitelistItem => lowerCaseName.includes(whitelistItem));
+                                const matchedWhitelistItem = WHITELIST_NAMES.find(w => lowerCaseName.includes(w));
                                 if (matchedWhitelistItem) {
                                     findings.push({
                                         bomRef: bomRef,
@@ -86,9 +94,8 @@ export function createLocalComplianceReport(cbom) {
                                 });
                                 return;
                             } else {
-                                // Primitive is part of UNKNOWN_PRIMITIVES
                                 unknownFindingMessage = "The asset primitive is unclear and does not allow further categorization";
-                            } 
+                            }
                         } else {
                             findings.push({
                                 bomRef: bomRef,
@@ -116,17 +123,24 @@ export function createLocalComplianceReport(cbom) {
             }
         });
 
-        const globalComplianceStatus = findings.every(finding => finding.levelId !== 1 && finding.levelId !== 2);
+        // Hardcoded logic for assessment level
+        const worstLevelId = findings.reduce((max, f) => Math.max(max, f.levelId), 1);
+        const assessmentLevel = (worstLevelId === 1 || worstLevelId === 2)
+            ? { id: 2, label: "not compliant" }
+            : { id: 1, label: "compliant" };
 
         return {
             complianceServiceName: COMPLIANCE_SERVICE_NAME,
             policyName: POLICY_NAME,
             findings: findings,
             complianceLevels: complianceLevels,
+            assessmentLevels: assessmentLevels,
+            defaultAssessmentLevel: defaultAssessmentLevel,
             defaultComplianceLevel: 2,
-            globalComplianceStatus: globalComplianceStatus,
+            assessmentLevel: assessmentLevel,
             error: false
         };
+
     } catch (e) {
         console.error(e);
         return { error: true };

@@ -30,7 +30,7 @@ public record ComplianceLevel(
         @Nullable String description,
         @Nonnull String colorHex,
         @Nonnull ComplianceIcon icon,
-        int severityId) {
+        int assessmentId) {
 
     public enum ComplianceIcon {
         CHECKMARK,
@@ -41,4 +41,13 @@ public record ComplianceLevel(
         UNKNOWN,
         TEST,
     }
+
+    public static final ComplianceLevel UNKNOWN =
+            new ComplianceLevel(
+                    0,
+                    "unknown",
+                    null,
+                    null,
+                    ComplianceIcon.UNKNOWN,
+                    AssessmentLevel.UNKNOWN.getId());
 }

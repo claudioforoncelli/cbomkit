@@ -19,11 +19,39 @@
  */
 package com.ibm.infrastructure.compliance.service;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
 import com.ibm.infrastructure.compliance.AssessmentLevel;
 import jakarta.annotation.Nonnull;
 import java.util.Collection;
 
-public record ComplianceCheckResultDTO(
-        @Nonnull Collection<ICryptographicAssetPolicyResult> policyResults,
-        boolean error,
-        AssessmentLevel assessmentLevel) {}
+public class ComplianceCheckResultDTO {
+
+    @Nonnull private final Collection<ICryptographicAssetPolicyResult> policyResults;
+
+    private final boolean error;
+
+    private final AssessmentLevel assessmentLevel;
+
+    public ComplianceCheckResultDTO(
+            @Nonnull Collection<ICryptographicAssetPolicyResult> policyResults,
+            boolean error,
+            AssessmentLevel assessmentLevel) {
+        this.policyResults = policyResults;
+        this.error = error;
+        this.assessmentLevel = assessmentLevel;
+    }
+
+    @JsonProperty("findings")
+    public Collection<ICryptographicAssetPolicyResult> getPolicyResults() {
+        return policyResults;
+    }
+
+    public boolean isError() {
+        return error;
+    }
+
+    @JsonProperty("assessmentLevel")
+    public AssessmentLevel getAssessmentLevel() {
+        return assessmentLevel;
+    }
+}
