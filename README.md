@@ -43,13 +43,7 @@ Deploy using the helm chart to a kubernetes environment. Pass the domain suffix 
 # clone the repository 
 git clone https://github.com/IBM/cbomkit
 # deploy using helm
-helm install cbomkit \
-  --set common.clusterDomain={CLUSTER_DOMAIN} \
-  --set postgresql.auth.username={POSTGRES_USER} \
-  --set postgresql.auth.password={POSTGRES_PASSWORD} \
-  --set backend.tag=$(curl -s https://api.github.com/repos/IBM/cbomkit/releases/latest | grep '"tag_name":' | sed -E 's/.*"([^"]+)".*/\1/') \
-  --set frontend.tag=$(curl -s https://api.github.com/repos/IBM/cbomkit/releases/latest | grep '"tag_name":' | sed -E 's/.*"([^"]+)".*/\1/') \
-  ./chart
+helm install cbomkit   --set common.clusterDomain={CLUSTER_DOMAIN}   --set postgresql.auth.username={POSTGRES_USER}   --set postgresql.auth.password={POSTGRES_PASSWORD}   --set backend.tag=$(curl -s https://api.github.com/repos/IBM/cbomkit/releases/latest | grep '"tag_name":' | sed -E 's/.*"([^"]+)".*//')   --set frontend.tag=$(curl -s https://api.github.com/repos/IBM/cbomkit/releases/latest | grep '"tag_name":' | sed -E 's/.*"([^"]+)".*//')   ./chart
 ```
 
 ## Architecture
@@ -59,13 +53,13 @@ The CBOMkit consists of three integral components: a web frontend, an API server
 ### Frontend and CBOMkit-coeus
 
 The web frontend serves as an intuitive user interface for interacting with the API server. It offers a range of functionalities, including:
- - Browsing the inventory of existing Cryptographic Bills of Materials (CBOMs)
- - Initiating new scans to generate CBOMs 
- - Uploading existing CBOMs for visualization and analysis
+- Browsing the inventory of existing Cryptographic Bills of Materials (CBOMs)
+- Initiating new scans to generate CBOMs
+- Uploading existing CBOMs for visualization and analysis
 
 #### CBOMkit-coeus
 
-For enhanced flexibility, the frontend component can be deployed as a standalone version, known as the CBOMkit-coeus. 
+For enhanced flexibility, the frontend component can be deployed as a standalone version, known as the CBOMkit-coeus.
 This option allows for streamlined visualization and compliance analysis independent of the full CBOMkit suite.
 
 ```shell
@@ -75,40 +69,109 @@ make coeus
 
 ### API Server
 
-The API server functions as the central component of the CBOMkit, offering a comprehensive RESTful API 
+The API server functions as the central component of the CBOMkit, offering a comprehensive RESTful API
 (see [OpenAPI specification](openapi.yaml)) with the following key features:
 
 #### Features
 - Retrieve the most recent generated CBOMs
 - Access stored CBOMs from the database
-- Perform compliance checks for user-provided CBOMs against specified policies 
+- Perform compliance checks for user-provided CBOMs against specified policies
 - Conduct compliance assessments for stored or generated CBOMs against defined policies
 
 *Sample Query to Retrieve CBOM project identifier*
 ```shell
-curl --request GET \
-  --url 'http://localhost:8081/api/v1/cbom/github.com%2Fkeycloak%2Fkeycloak'
+curl --request GET   --url 'http://localhost:8081/api/v1/cbom/github.com%2Fkeycloak%2Fkeycloak'
 ```
 
 In addition to the RESTful API, the server incorporates WebSocket integration, enabling:
- - Initiation of CBOM generation through Git repository scanning 
- - Real-time progress updates during the scanning process, transmitted via WebSocket connection
+- Initiation of CBOM generation through Git repository scanning
+- Real-time progress updates during the scanning process, transmitted via WebSocket connection
 
 ### Compliance
 
-A critical component of the CBOMkit is its compliance checking mechanism for Cryptography Bills of Materials (CBOMs). 
-The CBOM structure represents a hierarchical tree of cryptographic assets detected and used by an application. 
-This standardized format facilitates the development and implementation of generalized policies 
+A critical component of the CBOMkit is its compliance checking mechanism for Cryptography Bills of Materials (CBOMs).
+The CBOM structure represents a hierarchical tree of cryptographic assets detected and used by an application.
+This standardized format facilitates the development and implementation of generalized policies
 to identify and flag violations in cryptographic usage.
 
-The CBOMkit currently features a foundational `quantum-safe` compliance check. 
+The CBOMkit currently features a foundational `quantum-safe` compliance check.
 This initial implementation serves as a proof of concept and demonstrates the system's capability to evaluate
 cryptographic components against defined policies.
 
 The compliance framework is designed with extensibility in mind, providing a solid platform for:
- - Implementing additional compliance checks 
- - Enhancing existing verification processes 
- - Integrating custom compliance checks (external)
+- Implementing additional compliance checks
+- Enhancing existing verification processes
+- Integrating custom compliance checks (external)
+
+#### Custom Policies
+
+In addition to the built-in `quantum-safe` check, CBOMkit supports **custom compliance policies** defined in [TOML](https://toml.io/en/) format.  
+This enables organizations to codify their own rules and guidelines, ranging from regulatory standards to internal security baselines.
+
+A TOML policy is composed of four main parts:
+
+1. **Policy Header**  
+   Defines metadata such as the policy identifier, display name, and the default assessment level.
+
+2. **Assessment Levels**  
+   Represent the global severity scale of the evaluation (e.g., *Compliant*, *Potentially Compliant*, *Not Compliant*).
+
+   ```toml
+   [[assessment_levels]]
+   id = 1
+   label = "Compliant"
+
+   [[assessment_levels]]
+   id = 2
+   label = "Potentially compliant"
+
+   [[assessment_levels]]
+   id = 3
+   label = "Not compliant"
+   ```
+
+3. **Compliance Levels**  
+   Specify per-asset classifications (e.g., *Allowed*, *Deprecated*, *Disallowed*), each mapped to an assessment level.
+
+   ```toml
+   [[compliance_levels]]
+   id = 1
+   label = "Acceptable"
+   description = "Approved for use"
+   color = "green"
+   icon = "CHECKMARK"
+   assessment_level = 1
+
+   [[compliance_levels]]
+   id = 2
+   label = "Deprecated"
+   description = "Use is discouraged and may be disallowed soon"
+   color = "#ffc107"
+   icon = "WARNING"
+   assessment_level = 2
+   ```
+
+4. **Rules**  
+   Define fine-grained conditions on cryptographic assets. Rules can target algorithms, certificates, protocols, or related material.  
+   When multiple rules match the same asset, CBOMkit selects the most specific rule (the one with more matching parameters).
+
+   ```toml
+   [[rule]]
+   name = "sha1"
+   compliance_level = 2
+   description = "SHA-1 is deprecated and disallowed after 2030"
+   asset_type = "ALGORITHM"
+
+   [[rule]]
+   mode = "ecb"
+   crypto_functions = ["ENCRYPT"]
+   compliance_level = 3
+   description = "ECB encryption is disallowed"
+   asset_type = "ALGORITHM"
+   ```
+
+Once uploaded, TOML policies are dynamically registered and evaluated via the **Compliance Service Selector**.  
+This allows custom policies to be used alongside the built-in ones without modifying the application code.
 
 #### Configuration
 
@@ -122,13 +185,13 @@ Different deployment configurations utilize distinct sources for compliance veri
 
 ### Scanning and CBOM Generation
 
-The CBOMkit leverages advanced scanning technology to identify cryptographic usage within source code and generate 
-Cryptography Bills of Materials (CBOMs). This scanning capability is provided by the 
+The CBOMkit leverages advanced scanning technology to identify cryptographic usage within source code and generate
+Cryptography Bills of Materials (CBOMs). This scanning capability is provided by the
 [CBOMkit-hyperion (Sonar Cryptography Plugin)](https://github.com/IBM/sonar-cryptography), an open-source tool developed by IBM.
 
 #### Supported languages and libraries
 
-The current scanning capabilities of the CBOMkit are defined by the Sonar Cryptography Plugin's supported languages 
+The current scanning capabilities of the CBOMkit are defined by the Sonar Cryptography Plugin's supported languages
 and cryptographic libraries:
 
 | Language | Cryptographic Library                                                                         | Coverage | 
@@ -139,8 +202,8 @@ and cryptographic libraries:
 
 [^1]: We only cover the BouncyCastle *light-weight API* according to [this specification](https://javadoc.io/static/org.bouncycastle/bctls-jdk14/1.80/specifications.html)
 
-While the CBOMkit's scanning capabilities are currently bound to the Sonar Cryptography Plugin, the modular 
-design of this plugin allows for potential expansion to support additional languages and cryptographic libraries in 
+While the CBOMkit's scanning capabilities are currently bound to the Sonar Cryptography Plugin, the modular
+design of this plugin allows for potential expansion to support additional languages and cryptographic libraries in
 future updates.
 
 ## Contribution Guidelines

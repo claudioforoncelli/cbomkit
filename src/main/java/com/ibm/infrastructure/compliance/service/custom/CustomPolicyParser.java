@@ -233,13 +233,6 @@ public class CustomPolicyParser {
         return Math.toIntExact(requireLong(table, key));
     }
 
-    private static boolean requireBoolean(TomlTable table, String key) {
-        Boolean value = table.getBoolean(key);
-        if (value == null)
-            throw new IllegalArgumentException("Missing required boolean field: " + key);
-        return value;
-    }
-
     private static TomlArray requireArray(TomlParseResult table, String key) {
         TomlArray array = table.getArray(key);
         if (array == null)
