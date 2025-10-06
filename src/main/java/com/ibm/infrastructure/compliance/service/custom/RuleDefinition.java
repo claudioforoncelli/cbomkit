@@ -19,6 +19,8 @@
  */
 package com.ibm.infrastructure.compliance.service.custom;
 
+import java.util.HashMap;
+import java.util.Map;
 import org.cyclonedx.model.component.crypto.CryptoProperties;
 
 public class RuleDefinition {
@@ -26,6 +28,9 @@ public class RuleDefinition {
     private CryptoProperties cryptoProperties;
     private String description;
     private Integer levelId;
+
+    // allows storing additional expressions like ">=128 <512"
+    private Map<String, String> expressionMap = new HashMap<>();
 
     public String getName() {
         return name;
@@ -57,5 +62,13 @@ public class RuleDefinition {
 
     public void setLevelId(Integer levelId) {
         this.levelId = levelId;
+    }
+
+    public Map<String, String> getExpressionMap() {
+        return expressionMap;
+    }
+
+    public void setExpressionMap(Map<String, String> expressionMap) {
+        this.expressionMap = expressionMap;
     }
 }

@@ -43,63 +43,35 @@ public class CustomPolicyParser {
         policy.setName(requireString(toml, "name"));
         policy.setDefaultLevel(Math.toIntExact(requireLong(toml, "default_assessment_level")));
 
-        logger.info(
-                "Policy ID: {}, Name: {}, Default Level: {}",
-                policy.getId(),
-                policy.getName(),
-                policy.getDefaultLevel());
-
+        // ---- Assessment levels ----
         List<AssessmentLevel> assessmentLevels = new ArrayList<>();
         TomlArray assessmentLevelsArray = requireArray(toml, "assessment_levels");
-        logger.info("Parsing {} assessment levels...", assessmentLevelsArray.size());
-
         for (int i = 0; i < assessmentLevelsArray.size(); i++) {
-            Object entry = assessmentLevelsArray.get(i);
-            if (!(entry instanceof TomlTable level)) {
-                logger.warn("Skipping entry at index {} because it's not a TomlTable", i);
-                continue;
-            }
-
-            logger.debug("  Assessment level table keys: {}", level.keySet());
-
-            int id = requireInt(level, "id");
-            String label = requireString(level, "label");
-
-            logger.debug("  Raw values -> id: {}, label: {}", id, label);
-
-            AssessmentLevel assessmentLevel = new AssessmentLevel(id, label);
-            assessmentLevels.add(assessmentLevel);
-
-            logger.info("Parsed assessment level: {} (ID {})", label, id);
+            TomlTable level = assessmentLevelsArray.getTable(i);
+            assessmentLevels.add(
+                    new AssessmentLevel(requireInt(level, "id"), requireString(level, "label")));
         }
-
         policy.setAssessmentLevels(assessmentLevels);
 
+        // ---- Compliance levels ----
         List<ComplianceLevel> levels = new ArrayList<>();
         TomlArray levelsArray = requireArray(toml, "compliance_levels");
-        logger.info("Parsing {} compliance levels...", levelsArray.size());
-
         for (int i = 0; i < levelsArray.size(); i++) {
             TomlTable level = levelsArray.getTable(i);
-            ComplianceLevel complianceLevel =
+            levels.add(
                     new ComplianceLevel(
                             requireInt(level, "id"),
                             requireString(level, "label"),
                             requireString(level, "description"),
                             requireString(level, "color"),
                             parseEnum(level, "icon", ComplianceIcon.class),
-                            requireInt(level, "assessment_level"));
-            levels.add(complianceLevel);
-            logger.info(
-                    "Parsed compliance level: {} (ID {})",
-                    complianceLevel.label(),
-                    complianceLevel.id());
+                            requireInt(level, "assessment_level")));
         }
         policy.setLevels(levels);
 
+        // ---- Rules ----
         List<RuleDefinition> rules = new ArrayList<>();
         TomlArray rulesArray = requireArray(toml, "rule");
-        logger.info("Parsing {} rules...", rulesArray.size());
 
         for (int i = 0; i < rulesArray.size(); i++) {
             TomlTable table = rulesArray.getTable(i);
@@ -107,112 +79,116 @@ public class CustomPolicyParser {
             rule.setName(table.getString("name"));
             rule.setDescription(requireString(table, "description"));
             rule.setLevelId(requireInt(table, "compliance_level"));
-            logger.info(
-                    "Rule {}: Compliance Level {}, Desc: {}",
-                    i + 1,
-                    rule.getLevelId(),
-                    rule.getDescription());
+
+            Map<String, String> expressions = new HashMap<>();
 
             CryptoProperties props = new CryptoProperties();
             props.setOid(table.getString("oid"));
             props.setAssetType(parseEnum(table, "asset_type", AssetType.class));
-            logger.debug("  Asset type: {}", props.getAssetType());
 
             switch (props.getAssetType()) {
                 case ALGORITHM -> {
                     AlgorithmProperties alg = new AlgorithmProperties();
-                    if (table.contains("primitive")) {
+
+                    if (table.contains("primitive"))
                         alg.setPrimitive(parseEnum(table, "primitive", Primitive.class));
-                        logger.debug("    Primitive: {}", alg.getPrimitive());
-                    }
-                    if (table.contains("mode")) {
-                        alg.setMode(parseEnum(table, "mode", Mode.class));
-                        logger.debug("    Mode: {}", alg.getMode());
-                    }
-                    if (table.contains("padding")) {
+                    if (table.contains("mode")) alg.setMode(parseEnum(table, "mode", Mode.class));
+                    if (table.contains("padding"))
                         alg.setPadding(parseEnum(table, "padding", Padding.class));
-                        logger.debug("    Padding: {}", alg.getPadding());
+
+                    if (table.contains("parameter_set_identifier")) {
+                        String val = table.getString("parameter_set_identifier");
+                        alg.setParameterSetIdentifier(val);
+                        if (containsRangeSymbols(val)) {
+                            expressions.put("parameter_set_identifier", val);
+                        }
                     }
-                    alg.setParameterSetIdentifier(table.getString("parameter_set_identifier"));
-                    alg.setCurve(table.getString("curve"));
+
+                    if (table.contains("curve")) alg.setCurve(table.getString("curve"));
+
                     if (table.contains("execution_environment"))
                         alg.setExecutionEnvironment(
                                 parseEnum(
                                         table,
                                         "execution_environment",
                                         ExecutionEnvironment.class));
+
                     if (table.contains("implementation_platform"))
                         alg.setImplementationPlatform(
                                 parseEnum(
                                         table,
                                         "implementation_platform",
                                         ImplementationPlatform.class));
+
                     if (table.contains("crypto_functions"))
                         alg.setCryptoFunctions(
                                 toEnumList(
                                         Objects.requireNonNull(table.getArray("crypto_functions")),
                                         CryptoFunction.class));
+
                     if (table.contains("certification_level"))
                         alg.setCertificationLevel(
                                 toEnumList(
                                         Objects.requireNonNull(
                                                 table.getArray("certification_level")),
                                         CertificationLevel.class));
-                    if (table.contains("classical_security_level"))
-                        alg.setClassicalSecurityLevel(
-                                Math.toIntExact(table.getLong("classical_security_level")));
-                    if (table.contains("nist_quantum_security_level"))
-                        alg.setNistQuantumSecurityLevel(
-                                Math.toIntExact(table.getLong("nist_quantum_security_level")));
+
+                    if (table.contains("classical_security_level")) {
+                        Object val = table.get("classical_security_level");
+                        if (val instanceof Long l) alg.setClassicalSecurityLevel(l.intValue());
+                        else if (val instanceof String s && containsRangeSymbols(s))
+                            expressions.put("classical_security_level", s.trim());
+                    }
+
+                    if (table.contains("nist_quantum_security_level")) {
+                        Object val = table.get("nist_quantum_security_level");
+                        if (val instanceof Long l) alg.setNistQuantumSecurityLevel(l.intValue());
+                        else if (val instanceof String s && containsRangeSymbols(s))
+                            expressions.put("nist_quantum_security_level", s.trim());
+                    }
+
                     props.setAlgorithmProperties(alg);
                 }
+
+                case RELATED_CRYPTO_MATERIAL -> {
+                    RelatedCryptoMaterialProperties mat = new RelatedCryptoMaterialProperties();
+                    if (table.contains("size")) {
+                        Object val = table.get("size");
+                        if (val instanceof Long l) mat.setSize(l.intValue());
+                        else if (val instanceof String s && containsRangeSymbols(s))
+                            expressions.put("size", s.trim());
+                    }
+                    props.setRelatedCryptoMaterialProperties(mat);
+                }
+
                 case CERTIFICATE -> {
                     CertificateProperties cert = new CertificateProperties();
                     cert.setSubjectName(table.getString("subject_name"));
                     cert.setIssuerName(table.getString("issuer_name"));
-                    cert.setNotValidBefore(table.getString("not_valid_before"));
-                    cert.setNotValidAfter(table.getString("not_valid_after"));
-                    cert.setSignatureAlgorithmRef(table.getString("signature_algorithm_ref"));
-                    cert.setSubjectPublicKeyRef(table.getString("subject_public_key_ref"));
-                    cert.setCertificateFormat(table.getString("certificate_format"));
-                    cert.setCertificateExtension(table.getString("certificate_extension"));
                     props.setCertificateProperties(cert);
                 }
+
                 case PROTOCOL -> {
                     ProtocolProperties proto = new ProtocolProperties();
-                    if (table.contains("type"))
-                        proto.setType(parseEnum(table, "type", ProtocolType.class));
                     proto.setVersion(table.getString("version"));
-                    if (table.contains("cipher_suites"))
-                        proto.setCipherSuites(
-                                parseCipherSuites(
-                                        Objects.requireNonNull(table.getArray("cipher_suites"))));
                     props.setProtocolProperties(proto);
-                }
-                case RELATED_CRYPTO_MATERIAL -> {
-                    RelatedCryptoMaterialProperties mat = new RelatedCryptoMaterialProperties();
-                    mat.setId(table.getString("id"));
-                    if (table.contains("state"))
-                        mat.setState(parseEnum(table, "state", State.class));
-                    mat.setAlgorithmRef(table.getString("algorithm_ref"));
-                    mat.setCreationDate(table.getString("creation_date"));
-                    mat.setActivationDate(table.getString("activation_date"));
-                    mat.setUpdateDate(table.getString("update_date"));
-                    mat.setExpirationDate(table.getString("expiration_date"));
-                    mat.setValue(table.getString("value"));
-                    if (table.contains("size")) mat.setSize(Math.toIntExact(table.getLong("size")));
-                    mat.setFormat(table.getString("format"));
-                    props.setRelatedCryptoMaterialProperties(mat);
                 }
             }
 
             rule.setCryptoProperties(props);
+            rule.setExpressionMap(expressions);
             rules.add(rule);
         }
 
         policy.setRules(rules);
-        logger.info("Parsing complete.");
+        logger.info("Policy parsed successfully with {} rules.", rules.size());
         return policy;
+    }
+
+    // ---------- Utility Methods ----------
+
+    private static boolean containsRangeSymbols(String s) {
+        return s != null && (s.contains(">") || s.contains("<") || s.contains("="));
     }
 
     private static String requireString(TomlTable table, String key) {

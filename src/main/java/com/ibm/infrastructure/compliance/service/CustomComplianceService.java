@@ -142,28 +142,19 @@ public class CustomComplianceService implements IComplianceService {
 
             String assetOid = props.getOid();
             String ruleOid = ruleProps.getOid();
-            if (ruleOid != null && !matches(ruleOid, assetOid)) {
-                logger.debug(" - field 'oid': expected={}, actual={} → ✗", ruleOid, assetOid);
-                continue;
-            } else if (ruleOid != null) {
-                logger.debug(" - field 'oid': expected={}, actual={} → ✓", ruleOid, assetOid);
-            }
+            if (ruleOid != null && !matches(ruleOid, assetOid)) continue;
 
             String assetName = asset.component().getName();
             String ruleName = rule.getName();
-            if (ruleName != null && !matches(ruleName, assetName)) {
-                logger.debug(" - field 'name': expected={}, actual={} → ✗", ruleName, assetName);
-                continue;
-            } else if (ruleName != null) {
-                logger.debug(" - field 'name': expected={}, actual={} → ✓", ruleName, assetName);
-            }
+            if (ruleName != null && !matches(ruleName, assetName)) continue;
 
             boolean matched =
                     switch (props.getAssetType()) {
                         case ALGORITHM ->
                                 matchAlgorithm(
                                         props.getAlgorithmProperties(),
-                                        ruleProps.getAlgorithmProperties());
+                                        ruleProps.getAlgorithmProperties(),
+                                        rule);
                         case CERTIFICATE ->
                                 matchCertificate(
                                         props.getCertificateProperties(),
@@ -175,13 +166,12 @@ public class CustomComplianceService implements IComplianceService {
                         case RELATED_CRYPTO_MATERIAL ->
                                 matchRelatedMaterial(
                                         props.getRelatedCryptoMaterialProperties(),
-                                        ruleProps.getRelatedCryptoMaterialProperties());
+                                        ruleProps.getRelatedCryptoMaterialProperties(),
+                                        rule);
                         default -> false;
                     };
 
             if (matched) {
-                logger.debug("Rule matched.");
-
                 int specificity = computeSpecificity(rule);
                 ComplianceLevel level =
                         levelMap.getOrDefault(
@@ -193,56 +183,155 @@ public class CustomComplianceService implements IComplianceService {
                     bestLevel = level;
                     bestDescription = rule.getDescription();
                 }
-            } else {
-                logger.debug("Rule did not match.");
             }
         }
 
-        if (bestDescription != null) {
-            combinedDescription.append("- ").append(bestDescription);
-        } else {
+        if (bestDescription != null) combinedDescription.append("- ").append(bestDescription);
+        else
             combinedDescription
                     .append("No compliance rules matched for asset type: ")
                     .append(props.getAssetType());
-        }
 
         return new BasicCryptographicAssetPolicyResult(
                 asset.identifier().toLowerCase(), bestLevel, combinedDescription.toString().trim());
     }
 
-    private boolean matchAlgorithm(AlgorithmProperties actual, AlgorithmProperties rule) {
-        if (rule == null || actual == null) return false;
-        if (!fieldMatch("primitive", rule.getPrimitive(), actual.getPrimitive())) return false;
-        if (!fieldMatch(
-                "parameterSetIdentifier",
-                rule.getParameterSetIdentifier(),
-                actual.getParameterSetIdentifier())) return false;
-        if (!fieldMatch("curve", rule.getCurve(), actual.getCurve())) return false;
-        if (!fieldMatch(
-                "executionEnvironment",
-                rule.getExecutionEnvironment(),
-                actual.getExecutionEnvironment())) return false;
-        if (!fieldMatch(
-                "implementationPlatform",
-                rule.getImplementationPlatform(),
-                actual.getImplementationPlatform())) return false;
-        if (!fieldMatch("mode", rule.getMode(), actual.getMode())) return false;
-        if (!fieldMatch("padding", rule.getPadding(), actual.getPadding())) return false;
-        if (!fieldMatch(
-                "classicalSecurityLevel",
-                rule.getClassicalSecurityLevel(),
-                actual.getClassicalSecurityLevel())) return false;
-        if (!fieldMatch(
-                "nistQuantumSecurityLevel",
-                rule.getNistQuantumSecurityLevel(),
-                actual.getNistQuantumSecurityLevel())) return false;
-        if (!fieldMatch(
-                "certificationLevel", rule.getCertificationLevel(), actual.getCertificationLevel()))
-            return false;
-        if (!fieldMatch("cryptoFunctions", rule.getCryptoFunctions(), actual.getCryptoFunctions()))
-            return false;
-        return true;
+    // ---------- fieldMatch and matches (supports >=, <=, ranges) ----------
+
+    private boolean fieldMatch(String field, Object ruleValue, Object actualValue) {
+        boolean match = matches(ruleValue, actualValue);
+        logger.debug(
+                " - field '{}': expected={}, actual={} → {}",
+                field,
+                Objects.toString(ruleValue, "null"),
+                Objects.toString(actualValue, "null"),
+                match ? "✓" : "✗");
+        return match;
     }
+
+    private boolean matches(Object ruleValue, Object actualValue) {
+        if (ruleValue == null) return true;
+        if (actualValue == null) return false;
+
+        // ---- Numeric or range-based string expressions ----
+        if (ruleValue instanceof String ruleStr) {
+            String rule = ruleStr.trim();
+            String actualStr = actualValue.toString().trim();
+
+            // Handle range expressions like ">=128 <512"
+            if (rule.matches(".*[<>]=?.*\\d+.*")) {
+                try {
+                    double actualNum = Double.parseDouble(actualStr.replaceAll("[^0-9.]", ""));
+                    boolean match = true;
+
+                    for (String part : rule.split("\\s+")) {
+                        part = part.trim();
+                        if (part.matches(">=\\d+(\\.\\d+)?")) {
+                            double min = Double.parseDouble(part.substring(2));
+                            if (actualNum < min) match = false;
+                        } else if (part.matches("<=\\d+(\\.\\d+)?")) {
+                            double max = Double.parseDouble(part.substring(2));
+                            if (actualNum > max) match = false;
+                        } else if (part.matches(">\\d+(\\.\\d+)?")) {
+                            double min = Double.parseDouble(part.substring(1));
+                            if (actualNum <= min) match = false;
+                        } else if (part.matches("<\\d+(\\.\\d+)?")) {
+                            double max = Double.parseDouble(part.substring(1));
+                            if (actualNum >= max) match = false;
+                        } else if (part.matches("\\d+(\\.\\d+)?")) {
+                            double exact = Double.parseDouble(part);
+                            if (actualNum != exact) match = false;
+                        }
+                    }
+                    return match;
+                } catch (NumberFormatException e) {
+                    // fallback to normal string match
+                }
+            }
+            return rule.equalsIgnoreCase(actualStr);
+        }
+
+        // ---- Enums ----
+        if (ruleValue instanceof Enum<?> ruleEnum && actualValue instanceof Enum<?> actualEnum)
+            return ruleEnum.name().equalsIgnoreCase(actualEnum.name());
+
+        // ---- Numbers ----
+        if (ruleValue instanceof Number ruleNum && actualValue instanceof Number actualNum)
+            return ruleNum.doubleValue() == actualNum.doubleValue();
+
+        // ---- Default ----
+        return ruleValue.toString().trim().equalsIgnoreCase(actualValue.toString().trim());
+    }
+
+    // ---------- Extended algorithm + material matchers ----------
+
+    private boolean matchAlgorithm(
+            AlgorithmProperties actual, AlgorithmProperties rule, RuleDefinition r) {
+        if (rule == null || actual == null) return false;
+        boolean ok = true;
+        ok &= fieldMatch("primitive", rule.getPrimitive(), actual.getPrimitive());
+        ok &= fieldMatch("mode", rule.getMode(), actual.getMode());
+        ok &= fieldMatch("padding", rule.getPadding(), actual.getPadding());
+
+        // Range-aware parameter set
+        if (r.getExpressionMap().containsKey("parameterSetIdentifier")) {
+            ok &=
+                    matches(
+                            r.getExpressionMap().get("parameterSetIdentifier"),
+                            actual.getParameterSetIdentifier());
+        } else {
+            ok &=
+                    fieldMatch(
+                            "parameterSetIdentifier",
+                            rule.getParameterSetIdentifier(),
+                            actual.getParameterSetIdentifier());
+        }
+
+        ok &= fieldMatch("curve", rule.getCurve(), actual.getCurve());
+        ok &=
+                fieldMatch(
+                        "executionEnvironment",
+                        rule.getExecutionEnvironment(),
+                        actual.getExecutionEnvironment());
+        ok &=
+                fieldMatch(
+                        "implementationPlatform",
+                        rule.getImplementationPlatform(),
+                        actual.getImplementationPlatform());
+        ok &= fieldMatch("cryptoFunctions", rule.getCryptoFunctions(), actual.getCryptoFunctions());
+        ok &=
+                fieldMatch(
+                        "classicalSecurityLevel",
+                        rule.getClassicalSecurityLevel(),
+                        actual.getClassicalSecurityLevel());
+        ok &=
+                fieldMatch(
+                        "nistQuantumSecurityLevel",
+                        rule.getNistQuantumSecurityLevel(),
+                        actual.getNistQuantumSecurityLevel());
+        return ok;
+    }
+
+    private boolean matchRelatedMaterial(
+            RelatedCryptoMaterialProperties actual,
+            RelatedCryptoMaterialProperties rule,
+            RuleDefinition r) {
+        if (rule == null || actual == null) return false;
+        boolean ok = true;
+        ok &= fieldMatch("type", rule.getType(), actual.getType());
+
+        // Range-aware check for size
+        if (r.getExpressionMap().containsKey("size")) {
+            ok &= matches(r.getExpressionMap().get("size"), actual.getSize());
+        } else {
+            ok &= fieldMatch("size", rule.getSize(), actual.getSize());
+        }
+
+        ok &= fieldMatch("format", rule.getFormat(), actual.getFormat());
+        return ok;
+    }
+
+    // ---------- Other matchers remain unchanged ----------
 
     private boolean matchCertificate(CertificateProperties actual, CertificateProperties rule) {
         if (rule == null || actual == null) return false;
@@ -290,80 +379,15 @@ public class CustomComplianceService implements IComplianceService {
                                                                                     .equalsIgnoreCase(
                                                                                             protoSuite
                                                                                                     .getName())));
-            logger.debug(" - field 'cipherSuites': expected contains ≈ actual? {}", suiteMatch);
             result &= suiteMatch;
         }
         return result;
     }
 
-    private boolean matchRelatedMaterial(
-            RelatedCryptoMaterialProperties actual, RelatedCryptoMaterialProperties rule) {
-        if (rule == null || actual == null) return false;
-        if (!fieldMatch("type", rule.getType(), actual.getType())) return false;
-        if (!fieldMatch("id", rule.getId(), actual.getId())) return false;
-        if (!fieldMatch("state", rule.getState(), actual.getState())) return false;
-        if (!fieldMatch("algorithmRef", rule.getAlgorithmRef(), actual.getAlgorithmRef()))
-            return false;
-        if (!fieldMatch("creationDate", rule.getCreationDate(), actual.getCreationDate()))
-            return false;
-        if (!fieldMatch("activationDate", rule.getActivationDate(), actual.getActivationDate()))
-            return false;
-        if (!fieldMatch("updateDate", rule.getUpdateDate(), actual.getUpdateDate())) return false;
-        if (!fieldMatch("expirationDate", rule.getExpirationDate(), actual.getExpirationDate()))
-            return false;
-        if (!fieldMatch("value", rule.getValue(), actual.getValue())) return false;
-        if (!fieldMatch("size", rule.getSize(), actual.getSize())) return false;
-        if (!fieldMatch("format", rule.getFormat(), actual.getFormat())) return false;
-        return true;
-    }
-
-    private boolean fieldMatch(String field, Object ruleValue, Object actualValue) {
-        boolean match = matches(ruleValue, actualValue);
-        logger.debug(
-                " - field '{}': expected={}, actual={} → {}",
-                field,
-                Objects.toString(ruleValue, "null"),
-                Objects.toString(actualValue, "null"),
-                match ? "✓" : "✗");
-        return match;
-    }
-
-    private ComplianceLevel updateWorstLevel(
-            ComplianceLevel currentLevel,
-            int newLevelId,
-            String description,
-            StringBuilder descriptionBuilder) {
-        ComplianceLevel level =
-                levelMap.getOrDefault(String.valueOf(newLevelId), getDefaultComplianceLevel());
-        if (level.id() > currentLevel.id()) {
-            currentLevel = level;
-        }
-        descriptionBuilder.append("- ").append(description).append("\n");
-        return currentLevel;
-    }
-
-    private boolean matches(Object ruleValue, Object actualValue) {
-        if (ruleValue == null) return true;
-        if (actualValue == null) return false;
-
-        if (ruleValue instanceof String ruleStr && actualValue instanceof String actualStr) {
-            return ruleStr.trim().equalsIgnoreCase(actualStr.trim());
-        }
-        if (ruleValue instanceof Enum<?> ruleEnum && actualValue instanceof Enum<?> actualEnum) {
-            return ruleEnum.name().equalsIgnoreCase(actualEnum.name());
-        }
-        if (ruleValue instanceof Integer ruleInt && actualValue instanceof Integer actualInt) {
-            return ruleInt.equals(actualInt);
-        }
-        if (ruleValue instanceof Number ruleNum && actualValue instanceof Number actualNum) {
-            return ruleNum.intValue() == actualNum.intValue();
-        }
-        return ruleValue.toString().trim().equalsIgnoreCase(actualValue.toString().trim());
-    }
+    // ---------- Specificity remains unchanged ----------
 
     private int computeSpecificity(@Nonnull RuleDefinition rule) {
         int specificity = 0;
-
         if (rule.getName() != null && !rule.getName().isEmpty()) specificity++;
 
         CryptoProperties props = rule.getCryptoProperties();
@@ -421,7 +445,6 @@ public class CustomComplianceService implements IComplianceService {
                 if (mat.getFormat() != null) specificity++;
             }
         }
-
         return specificity;
     }
 }
