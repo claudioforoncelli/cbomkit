@@ -341,45 +341,30 @@ name = "EDDSA"
 asset_type = "ALGORITHM"
 compliance_level = 1
 crypto_functions = ["GENERATE", "VERIFY"]
-description = "ECDSA for key generation and verification is legacy use for <112 bits of security strength, acceptable for >= 112 bits of security strength (Section 3)"
+description = "EDDSA for key generation and verification is legacy use for <112 bits of security strength, acceptable for >= 112 bits of security strength (Section 3)"
 
-# --- EDDSA generation and verification with thresholds ---
-[[rule]]
-name = "EDDSA"
-asset_type = "ALGORITHM"
-crypto_functions = ["GENERATE", "VERIFY"]
-parameter_set_identifier = "<112"
-compliance_level = 3
-description = "EDDSA key generation and verification with <112 bits of security strength is legacy use (Section 3)"
 
 [[rule]]
 name = "EDDSA"
 asset_type = "ALGORITHM"
 crypto_functions = ["GENERATE", "VERIFY"]
-parameter_set_identifier = ">=112"
+parameter_set_identifier = ">=128"
 compliance_level = 2
-description = "EDDSA key generation and verification with >=112 bits of security strength is acceptable (Section 3)"
+description = "EDDSA for key generation and verification is acceptable for >=128 bits of security strength (Section 3)"
 
 
 [[rule]]
 name = "EDDSA"
 asset_type = "ALGORITHM"
-compliance_level = 3
-description = "ECDSA for key generation and verification is legacy use for <112 bits of security strength, acceptable for >= 112 bits of security strength (Section 3)"
+compliance_level = 1
+description = "EDDSA for key generation and verification is acceptable for >=128 bits of security strength (Section 3)"
 
 [[rule]]
 name = "EDDSA"
 asset_type = "ALGORITHM"
-parameter_set_identifier = "<112"
-compliance_level = 3
-description = "EDDSA with <112 bits of security strength is considered legacy use (Section 3)"
-
-[[rule]]
-name = "EDDSA"
-asset_type = "ALGORITHM"
-parameter_set_identifier = ">=112"
+parameter_set_identifier = ">=128"
 compliance_level = 2
-description = "EDDSA with >=112 bits of security strength is acceptable (Section 3)"
+description = "EDDSA with >=128 bits of security strength is acceptable (Section 3)"
 
 
 [[rule]]
@@ -561,14 +546,7 @@ description = "SHAKE256 is an acceptable extendable-output function (XOF) (Secti
 name = "ECDH"
 asset_type = "ALGORITHM"
 primitive = "KEY_AGREE"
-compliance_level = 2
-description = "ECDH is acceptable through 2030 and deprecated until 2030 for >112 bits of security strength, acceptable for >= 128 bits of security strength (Section 6)"
-
-[[rule]]
-name = "ECDH"
-asset_type = "ALGORITHM"
-primitive = "KEY_AGREE"
-compliance_level = 2
+compliance_level = 1
 description = "ECDH is acceptable through 2030 and deprecated until 2030 for >112 bits of security strength, acceptable for >= 128 bits of security strength (Section 6)"
 
 [[rule]]
