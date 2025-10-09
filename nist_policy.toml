@@ -1,0 +1,602 @@
+id = "nist_sp_800_131Ar3"
+name = "NIST SP 800-131Ar3"
+default_assessment_level = 1
+
+[[assessment_levels]]
+id = 1
+label = "compliant"
+
+[[assessment_levels]]
+id = 2
+label = "potentially not compliant"
+
+[[assessment_levels]]
+id = 3
+label = "not compliant"
+
+[[compliance_levels]]
+id = 1
+label = "Unknown"
+description = "Could not determine compliance status"
+color = "#17a9d1"
+icon = "UNKNOWN"
+assessment_level = 2
+
+[[compliance_levels]]
+id = 2
+label = "Acceptable"
+description = "Approved for use"
+color = "green"
+icon = "CHECKMARK"
+assessment_level = 1
+
+[[compliance_levels]]
+id = 3
+label = "Legacy Use"
+description = "Only allowed to decrypt/verify previously protected data"
+color = "gray"
+icon = "WARNING"
+assessment_level = 2
+
+[[compliance_levels]]
+id = 4
+label = "Deprecated"
+description = "Use is discouraged and may be disallowed soon"
+color = "#ffc107"
+icon = "WARNING"
+assessment_level = 2
+
+[[compliance_levels]]
+id = 5
+label = "Disallowed"
+description = "Use is disallowed"
+color = "#dc3545"
+icon = "ERROR"
+assessment_level = 3
+
+[[rule]]
+name = "sha1"
+compliance_level = 4
+description = "SHA-1 is deprecated and disallowed after 2030 (Section 1.2)"
+asset_type = "ALGORITHM"
+
+[[rule]]
+name = "sha224"
+compliance_level = 4
+description = "SHA-224 is deprecated and disallowed after 2030 (Section 1.2)"
+asset_type = "ALGORITHM"
+
+[[rule]]
+name = "sha256"
+compliance_level = 2
+description = "SHA-256 is acceptable"
+asset_type = "ALGORITHM"
+
+[[rule]]
+name = "aes"
+compliance_level = 2
+description = "AES is acceptable at all key sizes (128+) (Section 2.1)"
+asset_type = "ALGORITHM"
+
+[[rule]]
+name = "aes"
+compliance_level = 2
+description = "AES is acceptable at all key sizes (128+) (Section 2.1)"
+parameter_set_identifier = ">= 128"
+asset_type = "ALGORITHM"
+
+[[rule]]
+name = "AES128"
+compliance_level = 2
+description = "AES128 is acceptable (Section 2.1)"
+asset_type = "ALGORITHM"
+
+[[rule]]
+name = "AES128"
+compliance_level = 2
+parameter_set_identifier = "= 128"
+description = "AES128 is acceptable (Section 2.1)"
+asset_type = "ALGORITHM"
+
+[[rule]]
+name = "tdea"
+compliance_level = 5
+description = "TDEA encryption is disallowed (Section 2.1)"
+asset_type = "ALGORITHM"
+
+[[rule]]
+name = "tdea"
+compliance_level = 5
+crypto_functions = ["ENCRYPT"]
+description = "TDEA encryption is disallowed (Section 2.1)"
+asset_type = "ALGORITHM"
+
+[[rule]]
+name = "tdea"
+compliance_level = 3
+crypto_functions = ["DECRYPT"]
+description = "TDEA decryption is legacy use (Section 2.1)"
+asset_type = "ALGORITHM"
+
+[[rule]]
+name = "3des"
+compliance_level = 5
+description = "TDEA (3DES) encryption is disallowed (Section 2.1)"
+asset_type = "ALGORITHM"
+
+[[rule]]
+name = "3des"
+compliance_level = 5
+crypto_functions = ["ENCRYPT"]
+description = "TDEA (3DES) encryption is disallowed (Section 2.1)"
+asset_type = "ALGORITHM"
+
+[[rule]]
+name = "3des"
+compliance_level = 5
+crypto_functions = ["ENCRYPT", "DECRYPT"]
+description = "TDEA (3DES) encryption is disallowed (Section 2.1)"
+asset_type = "ALGORITHM"
+
+[[rule]]
+name = "3des"
+compliance_level = 3
+crypto_functions = ["DECRYPT"]
+description = "TDEA (3DES) decryption is legacy use (Section 2.1)"
+asset_type = "ALGORITHM"
+
+[[rule]]
+name = "triple des"
+compliance_level = 5
+description = "TDEA encryption is disallowed (Section 2.1)"
+asset_type = "ALGORITHM"
+
+[[rule]]
+name = "triple des"
+compliance_level = 5
+crypto_functions = ["ENCRYPT"]
+description = "TDEA encryption is disallowed (Section 2.1)"
+asset_type = "ALGORITHM"
+
+[[rule]]
+name = "triple des"
+compliance_level = 3
+crypto_functions = ["DECRYPT"]
+description = "TDEA decryption is legacy use (Section 2.1)"
+asset_type = "ALGORITHM"
+
+[[rule]]
+mode = "ecb"
+compliance_level = 3
+description = "ECB mode is disallowed for encryption, allowed for decryption (Section 2.2)"
+asset_type = "ALGORITHM"
+
+[[rule]]
+mode = "ecb"
+compliance_level = 2
+description = "ECB mode is allowed for decryption (Section 2.2)"
+crypto_functions = ["DECRYPT"]
+asset_type = "ALGORITHM"
+
+[[rule]]
+mode = "ecb"
+compliance_level = 5
+description = "ECB mode is disallowed for encryption (Section 2.2)"
+crypto_functions = ["ENCRYPT"]
+asset_type = "ALGORITHM"
+
+[[rule]]
+mode = "ecb"
+compliance_level = 5
+description = "ECB mode is disallowed for encryption (Section 2.2)"
+crypto_functions = ["DECRYPT", "ENCRYPT"]
+asset_type = "ALGORITHM"
+
+[[rule]]
+mode = "cbc"
+compliance_level = 2
+description = "CBC mode is acceptable (Section 2.2)"
+asset_type = "ALGORITHM"
+
+[[rule]]
+mode = "cfb"
+compliance_level = 2
+description = "CFB mode is acceptable (Section 2.2)"
+asset_type = "ALGORITHM"
+
+[[rule]]
+mode = "ctr"
+compliance_level = 2
+description = "CTR mode is acceptable (Section 2.2)"
+asset_type = "ALGORITHM"
+
+[[rule]]
+mode = "ofb"
+compliance_level = 2
+description = "OFB mode is acceptable (Section 2.2)"
+asset_type = "ALGORITHM"
+
+[[rule]]
+mode = "ccm"
+compliance_level = 2
+description = "CCM mode is acceptable (Section 2.2)"
+asset_type = "ALGORITHM"
+
+[[rule]]
+mode = "gcm"
+compliance_level = 2
+description = "GCM mode is acceptable (Section 2.2)"
+asset_type = "ALGORITHM"
+
+[[rule]]
+mode = "ecb"
+compliance_level = 5
+crypto_functions = ["ENCRYPT"]
+description = "ECB encryption is disallowed (Section 2.2)"
+asset_type = "ALGORITHM"
+
+[[rule]]
+name = "DSA"
+asset_type = "ALGORITHM"
+compliance_level = 5
+crypto_functions = ["GENERATE"]
+description = "DSA for key generation is disallowed (Section 3)"
+
+[[rule]]
+name = "DSA"
+asset_type = "ALGORITHM"
+compliance_level = 3
+crypto_functions = ["VERIFY"]
+description = "DSA for key verification is of legacy use (Section 3)"
+
+[[rule]]
+name = "ECDSA"
+asset_type = "ALGORITHM"
+crypto_functions = ["GENERATE"]
+parameter_set_identifier = "<112"
+compliance_level = 5
+description = "ECDSA key generation with <112 bits of security strength is disallowed (Section 3)"
+
+[[rule]]
+name = "ECDSA"
+asset_type = "ALGORITHM"
+crypto_functions = ["GENERATE"]
+parameter_set_identifier = ">=112 <128"
+compliance_level = 4
+description = "ECDSA key generation with 112–128 bits of security strength is deprecated, acceptable until 2030 (Section 3)"
+
+[[rule]]
+name = "ECDSA"
+asset_type = "ALGORITHM"
+crypto_functions = ["GENERATE"]
+parameter_set_identifier = ">=128"
+compliance_level = 2
+description = "ECDSA key generation with >=128 bits of security strength is acceptable (Section 3)"
+
+[[rule]]
+name = "ECDSA"
+asset_type = "ALGORITHM"
+crypto_functions = ["VERIFY"]
+parameter_set_identifier = "<112"
+compliance_level = 3
+description = "ECDSA verification with <112 bits of security strength is legacy use (Section 3)"
+
+[[rule]]
+name = "ECDSA"
+asset_type = "ALGORITHM"
+crypto_functions = ["VERIFY"]
+parameter_set_identifier = ">=112"
+compliance_level = 2
+description = "ECDSA verification with >=112 bits of security strength is acceptable (Section 3)"
+
+[[rule]]
+name = "EC"
+asset_type = "ALGORITHM"
+crypto_functions = ["GENERATE"]
+parameter_set_identifier = "<112"
+compliance_level = 5
+description = "EC key generation with <112 bits of security strength is disallowed (Section 3)"
+
+[[rule]]
+name = "EC"
+asset_type = "ALGORITHM"
+crypto_functions = ["GENERATE"]
+parameter_set_identifier = ">=112 <128"
+compliance_level = 4
+description = "EC key generation with 112–128 bits of security strength is deprecated, acceptable until 2030 (Section 3)"
+
+[[rule]]
+name = "EC"
+asset_type = "ALGORITHM"
+crypto_functions = ["GENERATE"]
+parameter_set_identifier = ">=128"
+compliance_level = 2
+description = "EC key generation with >=128 bits of security strength is acceptable (Section 3)"
+
+[[rule]]
+name = "EC"
+asset_type = "ALGORITHM"
+crypto_functions = ["VERIFY"]
+parameter_set_identifier = "<112"
+compliance_level = 3
+description = "EC verification with <112 bits of security strength is legacy use (Section 3)"
+
+[[rule]]
+name = "EC"
+asset_type = "ALGORITHM"
+crypto_functions = ["VERIFY"]
+parameter_set_identifier = ">=112"
+compliance_level = 2
+description = "EC verification with >=112 bits of security strength is acceptable (Section 3)"
+
+[[rule]]
+name = "EC"
+asset_type = "ALGORITHM"
+compliance_level = 1
+crypto_functions = ["VERIFY"]
+description = "ECDSA for key verification is legacy use for <112 bits of security strength, acceptable for >= 112 bits of security strength (Section 3)"
+
+[[rule]]
+name = "EDDSA"
+asset_type = "ALGORITHM"
+compliance_level = 1
+crypto_functions = ["GENERATE", "VERIFY"]
+description = "ECDSA for key generation and verification is legacy use for <112 bits of security strength, acceptable for >= 112 bits of security strength (Section 3)"
+
+# --- EDDSA generation and verification with thresholds ---
+[[rule]]
+name = "EDDSA"
+asset_type = "ALGORITHM"
+crypto_functions = ["GENERATE", "VERIFY"]
+parameter_set_identifier = "<112"
+compliance_level = 3
+description = "EDDSA key generation and verification with <112 bits of security strength is legacy use (Section 3)"
+
+[[rule]]
+name = "EDDSA"
+asset_type = "ALGORITHM"
+crypto_functions = ["GENERATE", "VERIFY"]
+parameter_set_identifier = ">=112"
+compliance_level = 2
+description = "EDDSA key generation and verification with >=112 bits of security strength is acceptable (Section 3)"
+
+
+[[rule]]
+name = "EDDSA"
+asset_type = "ALGORITHM"
+compliance_level = 3
+description = "ECDSA for key generation and verification is legacy use for <112 bits of security strength, acceptable for >= 112 bits of security strength (Section 3)"
+
+[[rule]]
+name = "EDDSA"
+asset_type = "ALGORITHM"
+parameter_set_identifier = "<112"
+compliance_level = 3
+description = "EDDSA with <112 bits of security strength is considered legacy use (Section 3)"
+
+[[rule]]
+name = "EDDSA"
+asset_type = "ALGORITHM"
+parameter_set_identifier = ">=112"
+compliance_level = 2
+description = "EDDSA with >=112 bits of security strength is acceptable (Section 3)"
+
+
+[[rule]]
+name = "HMAC-SHA1"
+asset_type = "ALGORITHM"
+compliance_level = 4
+crypto_functions = ["KEYGEN"]
+description = "HMAC-SHA1 for key generation is deprecated through 2030 and disallowed after 2030 (Section 4)"
+
+[[rule]]
+name = "HMAC-SHA224"
+asset_type = "ALGORITHM"
+compliance_level = 4
+crypto_functions = ["KEYGEN"]
+description = "HMAC-SHA224 for key generation is deprecated through 2030 and disallowed after 2030 (Section 4)"
+
+[[rule]]
+name = "HMAC-SHA512"
+asset_type = "ALGORITHM"
+compliance_level = 4
+crypto_functions = ["KEYGEN"]
+description = "HMAC-SHA512 for key generation is deprecated through 2030 and disallowed after 2030 (Section 4)"
+
+[[rule]]
+name = "HMAC-SHA3224"
+asset_type = "ALGORITHM"
+compliance_level = 4
+crypto_functions = ["KEYGEN"]
+description = "HMAC-SHA3-224 for key generation is deprecated through 2030 and disallowed after 2030 (Section 4)"
+
+[[rule]]
+name = "Hash-SHA1"
+asset_type = "ALGORITHM"
+compliance_level = 4
+crypto_functions = ["KEYGEN"]
+description = "HASH-SHA1 for key generation is deprecated through 2030 and disallowed after 2030 (Section 4)"
+
+[[rule]]
+name = "Hash-SHA224"
+asset_type = "ALGORITHM"
+compliance_level = 4
+crypto_functions = ["KEYGEN"]
+description = "HASH-SHA224 for key generation is deprecated through 2030 and disallowed after 2030 (Section 4)"
+
+[[rule]]
+name = "Hash-SHA512"
+asset_type = "ALGORITHM"
+compliance_level = 4
+crypto_functions = ["KEYGEN"]
+description = "HASH-SHA512 for key generation is deprecated through 2030 and disallowed after 2030 (Section 4)"
+
+[[rule]]
+name = "Hash-SHA3224"
+asset_type = "ALGORITHM"
+compliance_level = 4
+crypto_functions = ["KEYGEN"]
+description = "HASH-SHA3-224 for key generation is deprecated through 2030 and disallowed after 2030 (Section 4)"
+
+[[rule]]
+name = "CTR-TDEA"
+asset_type = "ALGORITHM"
+compliance_level = 5
+crypto_functions = ["KEYGEN"]
+description = "CTR-TDEA for key generation is disallowed (Section 4)"
+
+[[rule]]
+name = "CTR-AES-128"
+asset_type = "ALGORITHM"
+compliance_level = 2
+crypto_functions = ["KEYGEN"]
+description = "CTR-AES-128 for key generation is acceptable (Section 4)"
+
+[[rule]]
+name = "CTR-AES-192"
+asset_type = "ALGORITHM"
+compliance_level = 2
+crypto_functions = ["KEYGEN"]
+description = "CTR-AES-192 for key generation is acceptable (Section 4)"
+
+[[rule]]
+name = "CTR-AES-256"
+asset_type = "ALGORITHM"
+compliance_level = 2
+crypto_functions = ["KEYGEN"]
+description = "CTR-AES-256 for key generation is acceptable (Section 4)"
+
+[[rule]]
+name = "KMAC128"
+asset_type = "ALGORITHM"
+compliance_level = 2
+primitive = "kdf"
+description = "Key derivation function KMAC128 is acceptable (Section 9)"
+
+[[rule]]
+name = "KMAC256"
+asset_type = "ALGORITHM"
+compliance_level = 2
+primitive = "kdf"
+description = "Key derivation function KMAC256 is acceptable (Section 9)"
+
+[[rule]]
+name = "AES-CMAC"
+asset_type = "ALGORITHM"
+compliance_level = 2
+primitive = "kdf"
+description = "Key derivation function AES-CMAC is acceptable (Section 9)"
+
+[[rule]]
+name = "HMAC-SHA1"
+asset_type = "ALGORITHM"
+compliance_level = 4
+crypto_functions = ["KEYDERIVE"]
+description = "HMAC-SHA1 for key derivation is deprecated through 2030 and disallowed after 2030 (Section 9)"
+
+[[rule]]
+name = "HMAC-SHA224"
+asset_type = "ALGORITHM"
+compliance_level = 4
+crypto_functions = ["KEYDERIVE"]
+description = "HMAC-SHA224 for key derivation is deprecated through 2030 and disallowed after 2030 (Section 9)"
+
+[[rule]]
+name = "HMAC-SHA512"
+asset_type = "ALGORITHM"
+compliance_level = 4
+crypto_functions = ["KEYDERIVE"]
+description = "HMAC-SHA512 for key derivation is deprecated through 2030 and disallowed after 2030 (Section 9)"
+
+[[rule]]
+name = "HMAC-SHA3224"
+asset_type = "ALGORITHM"
+compliance_level = 4
+crypto_functions = ["KEYDERIVE"]
+description = "HMAC-SHA3-224 for key derivation is deprecated through 2030 and disallowed after 2030 (Section 9)"
+
+[[rule]]
+name = "Hash-SHA1"
+asset_type = "ALGORITHM"
+compliance_level = 4
+crypto_functions = ["KEYDERIVE"]
+description = "HASH-SHA1 for key derivation is deprecated through 2030 and disallowed after 2030 (Section 9)"
+
+[[rule]]
+name = "Hash-SHA224"
+asset_type = "ALGORITHM"
+compliance_level = 4
+crypto_functions = ["KEYDERIVE"]
+description = "HASH-SHA224 for key derivation is deprecated through 2030 and disallowed after 2030 (Section 9)"
+
+[[rule]]
+name = "Hash-SHA512"
+asset_type = "ALGORITHM"
+compliance_level = 4
+crypto_functions = ["KEYDERIVE"]
+description = "HASH-SHA512 for key derivation is deprecated through 2030 and disallowed after 2030 (Section 9)"
+
+[[rule]]
+name = "Hash-SHA3224"
+asset_type = "ALGORITHM"
+compliance_level = 4
+crypto_functions = ["KEYDERIVE"]
+description = "HASH-SHA3-224 for key derivation is deprecated through 2030 and disallowed after 2030 (Section 9)"
+
+[[rule]]
+name = "SHAKE128"
+asset_type = "ALGORITHM"
+primitive = "xof"
+compliance_level = 2
+description = "SHAKE128 is an acceptable extendable-output function (XOF) (Section 12)
+
+[[rule]]
+name = "SHAKE256"
+asset_type = "ALGORITHM"
+primitive = "xof"
+compliance_level = 2
+description = "SHAKE256 is an acceptable extendable-output function (XOF) (Section 12)
+
+[[rule]]
+name = "ECDH"
+asset_type = "ALGORITHM"
+primitive = "KEY_AGREE"
+compliance_level = 2
+description = "ECDH is acceptable through 2030 and deprecated until 2030 for >112 bits of security strength, acceptable for >= 128 bits of security strength (Section 6)"
+
+[[rule]]
+name = "ECDH"
+asset_type = "ALGORITHM"
+primitive = "KEY_AGREE"
+compliance_level = 2
+description = "ECDH is acceptable through 2030 and deprecated until 2030 for >112 bits of security strength, acceptable for >= 128 bits of security strength (Section 6)"
+
+[[rule]]
+name = "ECDH"
+asset_type = "ALGORITHM"
+primitive = "KEY_AGREE"
+parameter_set_identifier = "<112"
+compliance_level = 5
+description = "ECDH with <112 bits of security strength is disallowed (Section 6)"
+
+[[rule]]
+name = "ECDH"
+asset_type = "ALGORITHM"
+primitive = "KEY_AGREE"
+parameter_set_identifier = ">=112 <128"
+compliance_level = 4
+description = "ECDH with 112–127 bits of security strength is deprecated through 2030 (Section 6)"
+
+[[rule]]
+name = "ECDH"
+asset_type = "ALGORITHM"
+primitive = "KEY_AGREE"
+parameter_set_identifier = ">=128"
+compliance_level = 2
+description = "ECDH with >=128 bits of security strength is acceptable (Section 6)"
+
+
+
+
+
+

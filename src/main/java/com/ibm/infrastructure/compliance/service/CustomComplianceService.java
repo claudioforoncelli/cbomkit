@@ -263,28 +263,41 @@ public class CustomComplianceService implements IComplianceService {
         return ruleValue.toString().trim().equalsIgnoreCase(actualValue.toString().trim());
     }
 
-    // ---------- Extended algorithm + material matchers ----------
-
     private boolean matchAlgorithm(
             AlgorithmProperties actual, AlgorithmProperties rule, RuleDefinition r) {
         if (rule == null || actual == null) return false;
+
         boolean ok = true;
+
         ok &= fieldMatch("primitive", rule.getPrimitive(), actual.getPrimitive());
         ok &= fieldMatch("mode", rule.getMode(), actual.getMode());
         ok &= fieldMatch("padding", rule.getPadding(), actual.getPadding());
 
-        // Range-aware parameter set
-        if (r.getExpressionMap().containsKey("parameterSetIdentifier")) {
-            ok &=
-                    matches(
-                            r.getExpressionMap().get("parameterSetIdentifier"),
-                            actual.getParameterSetIdentifier());
+        // --- Range-aware parameterSetIdentifier enforcement ---
+        String expr = r.getExpressionMap().get("parameterSetIdentifier");
+        String ruleParam = rule.getParameterSetIdentifier();
+        String actualParam = actual.getParameterSetIdentifier();
+
+        // If the rule defines a parameterSetIdentifier (explicit or range),
+        // but the asset lacks one → skip this rule.
+        if ((expr != null || ruleParam != null) && actualParam == null) {
+            logger.debug(
+                    " - field 'parameterSetIdentifier' missing in asset, rule defines one → ✗");
+            return false;
+        }
+
+        // Range-based or threshold expression
+        if (expr != null) {
+            boolean match = matches(expr, actualParam);
+            logger.debug(
+                    " - field 'parameterSetIdentifier' expression match: rule='{}', actual='{}' → {}",
+                    expr,
+                    actualParam,
+                    match ? "✓" : "✗");
+            if (!match) return false;
+            ok &= match;
         } else {
-            ok &=
-                    fieldMatch(
-                            "parameterSetIdentifier",
-                            rule.getParameterSetIdentifier(),
-                            actual.getParameterSetIdentifier());
+            ok &= fieldMatch("parameterSetIdentifier", ruleParam, actualParam);
         }
 
         ok &= fieldMatch("curve", rule.getCurve(), actual.getCurve());
@@ -309,6 +322,7 @@ public class CustomComplianceService implements IComplianceService {
                         "nistQuantumSecurityLevel",
                         rule.getNistQuantumSecurityLevel(),
                         actual.getNistQuantumSecurityLevel());
+
         return ok;
     }
 
@@ -317,21 +331,38 @@ public class CustomComplianceService implements IComplianceService {
             RelatedCryptoMaterialProperties rule,
             RuleDefinition r) {
         if (rule == null || actual == null) return false;
+
         boolean ok = true;
         ok &= fieldMatch("type", rule.getType(), actual.getType());
 
-        // Range-aware check for size
-        if (r.getExpressionMap().containsKey("size")) {
-            ok &= matches(r.getExpressionMap().get("size"), actual.getSize());
+        // --- Range-aware size enforcement ---
+        String expr = r.getExpressionMap().get("size");
+        String ruleSize = (rule.getSize() != null) ? rule.getSize().toString() : null;
+        String actualSize = (actual.getSize() != null) ? actual.getSize().toString() : null;
+
+        // If the rule defines a size (explicit or range) but the asset lacks one --> skip rule
+        if ((expr != null || ruleSize != null) && actualSize == null) {
+            logger.debug(" - field 'size' missing in asset, rule defines one → ✗");
+            return false;
+        }
+
+        // Range-based or threshold expression
+        if (expr != null) {
+            boolean match = matches(expr, actualSize);
+            logger.debug(
+                    " - field 'size' expression match: rule='{}', actual='{}' → {}",
+                    expr,
+                    actualSize,
+                    match ? "✓" : "✗");
+            if (!match) return false;
+            ok &= match;
         } else {
-            ok &= fieldMatch("size", rule.getSize(), actual.getSize());
+            ok &= fieldMatch("size", ruleSize, actualSize);
         }
 
         ok &= fieldMatch("format", rule.getFormat(), actual.getFormat());
         return ok;
     }
-
-    // ---------- Other matchers remain unchanged ----------
 
     private boolean matchCertificate(CertificateProperties actual, CertificateProperties rule) {
         if (rule == null || actual == null) return false;
@@ -362,9 +393,12 @@ public class CustomComplianceService implements IComplianceService {
 
     private boolean matchProtocol(ProtocolProperties actual, ProtocolProperties rule) {
         if (rule == null || actual == null) return false;
+
         boolean result = true;
+
         result &= fieldMatch("type", rule.getType(), actual.getType());
         result &= fieldMatch("version", rule.getVersion(), actual.getVersion());
+
         if (rule.getCipherSuites() != null) {
             boolean suiteMatch =
                     actual.getCipherSuites() != null
@@ -379,12 +413,12 @@ public class CustomComplianceService implements IComplianceService {
                                                                                     .equalsIgnoreCase(
                                                                                             protoSuite
                                                                                                     .getName())));
+
             result &= suiteMatch;
         }
+
         return result;
     }
-
-    // ---------- Specificity remains unchanged ----------
 
     private int computeSpecificity(@Nonnull RuleDefinition rule) {
         int specificity = 0;
