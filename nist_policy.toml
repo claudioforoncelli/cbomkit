@@ -595,6 +595,78 @@ parameter_set_identifier = ">=128"
 compliance_level = 2
 description = "ECDH with >=128 bits of security strength is acceptable (Section 6)"
 
+[[rule]]
+name = "HMAC-SHA1"
+asset_type = "ALGORITHM"
+primitive = "MAC"
+crypto_functions = ["TAG"]
+compliance_level = 5
+description = "HMAC-SHA1 generation is disallowed for key strengths below 112 bits. Deprecated through 2030 and disallowed after 2030."
+
+[[rule]]
+name = "HMAC-SHA224"
+asset_type = "ALGORITHM"
+primitive = "MAC"
+crypto_functions = ["TAG"]
+compliance_level = 4
+description = "HMAC-SHA224 generation is deprecated through 2030 and disallowed after 2030."
+
+[[rule]]
+name = "HMAC-SHA512/224"
+asset_type = "ALGORITHM"
+primitive = "MAC"
+crypto_functions = ["TAG"]
+compliance_level = 4
+description = "HMAC-SHA512/224 generation is deprecated through 2030 and disallowed after 2030."
+
+[[rule]]
+name = "HMAC-SHA3-224"
+asset_type = "ALGORITHM"
+primitive = "MAC"
+crypto_functions = ["TAG"]
+compliance_level = 4
+description = "HMAC-SHA3-224 generation is deprecated through 2030 and disallowed after 2030."
+
+[[rule]]
+name = "HMAC-SHA256"
+asset_type = "ALGORITHM"
+primitive = "MAC"
+crypto_functions = ["TAG"]
+compliance_level = 2
+description = "HMAC-SHA256 generation is acceptable through 2030 for all key strengths ≥ 112 bits."
+
+[[rule]]
+name = "HMAC-SHA384"
+asset_type = "ALGORITHM"
+primitive = "MAC"
+crypto_functions = ["TAG"]
+compliance_level = 2
+description = "HMAC-SHA384 generation is acceptable through 2030 for all key strengths ≥ 112 bits."
+
+[[rule]]
+name = "HMAC-SHA512"
+asset_type = "ALGORITHM"
+primitive = "MAC"
+crypto_functions = ["TAG"]
+compliance_level = 2
+description = "HMAC-SHA512 generation is acceptable for all key strengths ≥ 112 bits."
+
+[[rule]]
+name = "HMAC-SHA3-256"
+asset_type = "ALGORITHM"
+primitive = "MAC"
+crypto_functions = ["TAG"]
+compliance_level = 2
+description = "HMAC-SHA3-256 generation is acceptable through 2030 for key strengths between 112 and 128 bits, and acceptable without restriction ≥128 bits."
+
+[[rule]]
+name = "HMAC-SHA3-512"
+asset_type = "ALGORITHM"
+primitive = "MAC"
+crypto_functions = ["TAG"]
+compliance_level = 2
+description = "HMAC-SHA3-512 generation is acceptable for key strengths ≥128 bits."
+
 
 
 
