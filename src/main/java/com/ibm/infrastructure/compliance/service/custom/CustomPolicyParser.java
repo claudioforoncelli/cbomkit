@@ -81,7 +81,6 @@ public class CustomPolicyParser {
             rule.setLevelId(requireInt(table, "compliance_level"));
 
             Map<String, String> expressions = new HashMap<>();
-
             CryptoProperties props = new CryptoProperties();
             props.setOid(table.getString("oid"));
             props.setAssetType(parseEnum(table, "asset_type", AssetType.class));
@@ -96,6 +95,7 @@ public class CustomPolicyParser {
                     if (table.contains("padding"))
                         alg.setPadding(parseEnum(table, "padding", Padding.class));
 
+                    // ---- parameter_set_identifier ----
                     if (table.contains("parameter_set_identifier")) {
                         String val = table.getString("parameter_set_identifier");
                         alg.setParameterSetIdentifier(val);
@@ -104,8 +104,30 @@ public class CustomPolicyParser {
                         }
                     }
 
-                    if (table.contains("curve")) alg.setCurve(table.getString("curve"));
+                    // ---- curve (string or list) ----
+                    if (table.contains("curve")) {
+                        Object val = table.get("curve");
 
+                        if (val instanceof String s) {
+                            // single string curve
+                            alg.setCurve(s);
+                        } else if (val instanceof TomlArray arr) {
+                            // list of curves
+                            List<String> curves =
+                                    arr.toList().stream()
+                                            .map(Object::toString)
+                                            .map(String::trim)
+                                            .collect(Collectors.toList());
+
+                            if (!curves.isEmpty()) {
+                                alg.setCurve(curves.get(0)); // backward compatibility
+                                expressions.put("curveList", String.join(",", curves));
+                                logger.debug("Parsed curve list: {} → {}", rule.getName(), curves);
+                            }
+                        }
+                    }
+
+                    // ---- other algorithm parameters ----
                     if (table.contains("execution_environment"))
                         alg.setExecutionEnvironment(
                                 parseEnum(

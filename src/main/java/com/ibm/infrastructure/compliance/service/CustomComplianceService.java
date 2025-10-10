@@ -263,6 +263,8 @@ public class CustomComplianceService implements IComplianceService {
         return ruleValue.toString().trim().equalsIgnoreCase(actualValue.toString().trim());
     }
 
+    // ---------- Algorithm Matcher (updated for curve lists) ----------
+
     private boolean matchAlgorithm(
             AlgorithmProperties actual, AlgorithmProperties rule, RuleDefinition r) {
         if (rule == null || actual == null) return false;
@@ -278,15 +280,12 @@ public class CustomComplianceService implements IComplianceService {
         String ruleParam = rule.getParameterSetIdentifier();
         String actualParam = actual.getParameterSetIdentifier();
 
-        // If the rule defines a parameterSetIdentifier (explicit or range),
-        // but the asset lacks one → skip this rule.
         if ((expr != null || ruleParam != null) && actualParam == null) {
             logger.debug(
                     " - field 'parameterSetIdentifier' missing in asset, rule defines one → ✗");
             return false;
         }
 
-        // Range-based or threshold expression
         if (expr != null) {
             boolean match = matches(expr, actualParam);
             logger.debug(
@@ -300,7 +299,30 @@ public class CustomComplianceService implements IComplianceService {
             ok &= fieldMatch("parameterSetIdentifier", ruleParam, actualParam);
         }
 
-        ok &= fieldMatch("curve", rule.getCurve(), actual.getCurve());
+        // --- Curve list matching support ---
+        String actualCurve = actual.getCurve();
+        String curveListExpr = r.getExpressionMap().get("curveList");
+
+        if (curveListExpr != null) {
+            List<String> curves =
+                    Arrays.stream(curveListExpr.split(","))
+                            .map(String::trim)
+                            .filter(s -> !s.isEmpty())
+                            .collect(Collectors.toList());
+            boolean match =
+                    actualCurve != null
+                            && curves.stream().anyMatch(c -> c.equalsIgnoreCase(actualCurve));
+            logger.debug(
+                    " - curve list match: actual='{}', list={} → {}",
+                    actualCurve,
+                    curves,
+                    match ? "✓" : "✗");
+            if (!match) return false;
+            ok &= match;
+        } else {
+            ok &= fieldMatch("curve", rule.getCurve(), actualCurve);
+        }
+
         ok &=
                 fieldMatch(
                         "executionEnvironment",
@@ -340,13 +362,11 @@ public class CustomComplianceService implements IComplianceService {
         String ruleSize = (rule.getSize() != null) ? rule.getSize().toString() : null;
         String actualSize = (actual.getSize() != null) ? actual.getSize().toString() : null;
 
-        // If the rule defines a size (explicit or range) but the asset lacks one --> skip rule
         if ((expr != null || ruleSize != null) && actualSize == null) {
             logger.debug(" - field 'size' missing in asset, rule defines one → ✗");
             return false;
         }
 
-        // Range-based or threshold expression
         if (expr != null) {
             boolean match = matches(expr, actualSize);
             logger.debug(
@@ -395,7 +415,6 @@ public class CustomComplianceService implements IComplianceService {
         if (rule == null || actual == null) return false;
 
         boolean result = true;
-
         result &= fieldMatch("type", rule.getType(), actual.getType());
         result &= fieldMatch("version", rule.getVersion(), actual.getVersion());
 
@@ -413,7 +432,6 @@ public class CustomComplianceService implements IComplianceService {
                                                                                     .equalsIgnoreCase(
                                                                                             protoSuite
                                                                                                     .getName())));
-
             result &= suiteMatch;
         }
 
